@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <title>Rhino plugin for Claude Code</title>
 <style>
-  @font-face { font-family: "Instrument Serif"; src: url(fonts/InstrumentSerif-Regular.ttf); }
-  @font-face { font-family: "Instrument Serif"; src: url(fonts/InstrumentSerif-Italic.ttf); font-style: italic; }
-  @font-face { font-family: "Instrument Sans"; src: url(fonts/InstrumentSans-Regular.ttf); }
-  @font-face { font-family: "Instrument Sans"; src: url(fonts/InstrumentSans-Bold.ttf); font-weight: 700; }
-  @font-face { font-family: "Instrument Sans"; src: url(fonts/InstrumentSans-Italic.ttf); font-style: italic; }
-  @font-face { font-family: "Geist Mono"; src: url(fonts/GeistMono-Regular.ttf); }
-  @font-face { font-family: "Geist Mono"; src: url(fonts/GeistMono-Bold.ttf); font-weight: 700; }
+  @font-face { font-family: "Bricolage"; src: url(fonts/BricolageGrotesque-Regular.ttf); }
+  @font-face { font-family: "Bricolage"; src: url(fonts/BricolageGrotesque-Bold.ttf); font-weight: 700; }
+  @font-face { font-family: "Work Sans"; src: url(fonts/WorkSans-Regular.ttf); }
+  @font-face { font-family: "Work Sans"; src: url(fonts/WorkSans-Bold.ttf); font-weight: 700; }
+  @font-face { font-family: "Work Sans"; src: url(fonts/WorkSans-Italic.ttf); font-style: italic; }
+  @font-face { font-family: "Plex Mono"; src: url(fonts/IBMPlexMono-Regular.ttf); }
+  @font-face { font-family: "Plex Mono"; src: url(fonts/IBMPlexMono-Bold.ttf); font-weight: 700; }
 
   :root {
     --ground: #eceef1;
@@ -27,7 +27,7 @@
   @page { size: A4; margin: 0; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { background: var(--ground); color: var(--ink); }
-  body { font: 9.4pt/1.5 "Instrument Sans", "Segoe UI", sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { font: 9.4pt/1.5 "Work Sans", "Segoe UI", sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
   .page {
     width: 210mm; height: 297mm; position: relative; overflow: hidden; page-break-after: always;
@@ -37,9 +37,9 @@
   }
   .page:last-child { page-break-after: auto; }
 
-  .mono { font-family: "Geist Mono", Consolas, monospace; }
-  .label { font: 6.6pt "Geist Mono", monospace; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-3); }
-  code { font: 7.8pt "Geist Mono", monospace; background: #fff; border: 0.25mm solid var(--rule); padding: 0 1mm; border-radius: 0.6mm; }
+  .mono { font-family: "Plex Mono", Consolas, monospace; }
+  .label { font: 6.6pt "Plex Mono", monospace; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-3); }
+  code { font: 7.8pt "Plex Mono", monospace; background: #fff; border: 0.25mm solid var(--rule); padding: 0 1mm; border-radius: 0.6mm; }
 
   /* ---------- hero (dark block, bleeds to the edges) ---------- */
   .hero {
@@ -52,8 +52,8 @@
   .hero .label b { color: var(--lime); font-weight: 400; }
   .status { display: inline-flex; align-items: center; gap: 1.6mm; }
   .status i { width: 1.8mm; height: 1.8mm; border-radius: 50%; background: var(--lime); display: inline-block; box-shadow: 0 0 0 0.8mm rgba(211,245,59,0.18); }
-  .hero h1 { font: 400 50pt/0.92 "Instrument Serif", Georgia, serif; letter-spacing: -0.02em; margin-top: 10mm; }
-  .hero h1 em { font-style: italic; color: #b9c0ff; }
+  .hero h1 { font: 700 40pt/0.98 "Bricolage", "Work Sans", sans-serif; letter-spacing: -0.02em; margin-top: 10mm; }
+  .hero h1 em { font-style: normal; color: #b9c0ff; }
   .hero .lede { margin-top: 6mm; max-width: 104mm; color: #b7bcc6; font-size: 10.4pt; line-height: 1.5; }
   .orbit { position: absolute; right: 13mm; top: 21mm; width: 58mm; height: 58mm; }
 
@@ -61,14 +61,14 @@
   section { margin-top: 7.5mm; }
   .page > section:last-of-type { margin-bottom: 5mm; }
   .sec-head { display: grid; grid-template-columns: 15mm 1fr auto; align-items: baseline; border-top: 0.35mm solid var(--ink); padding-top: 2.2mm; margin-bottom: 4.5mm; }
-  .sec-head .num { font: 7pt "Geist Mono", monospace; color: var(--signal); letter-spacing: 0.08em; }
-  .sec-head h2 { font: 400 17pt/1 "Instrument Serif", Georgia, serif; letter-spacing: -0.01em; }
+  .sec-head .num { font: 7pt "Plex Mono", monospace; color: var(--signal); letter-spacing: 0.08em; }
+  .sec-head h2 { font: 700 14pt/1.1 "Bricolage", "Work Sans", sans-serif; letter-spacing: -0.01em; }
   .sec-head .label { text-align: right; }
 
   /* what it does */
   .three { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6mm; }
-  .feat .k { font: 7pt "Geist Mono", monospace; color: var(--signal); }
-  .feat h3 { font: 700 10.4pt/1.25 "Instrument Sans", sans-serif; margin: 1.2mm 0 1.2mm; }
+  .feat .k { font: 7pt "Plex Mono", monospace; color: var(--signal); }
+  .feat h3 { font: 700 10.4pt/1.25 "Work Sans", sans-serif; margin: 1.2mm 0 1.2mm; }
   .feat p { color: var(--ink-2); font-size: 8.9pt; }
 
   /* figure */
@@ -79,49 +79,49 @@
 
   /* steps */
   .steps { display: grid; grid-template-columns: 1fr 1.55fr 1fr; gap: 6mm; }
-  .step .n { font: italic 400 30pt/0.9 "Instrument Serif", Georgia, serif; color: var(--signal); }
-  .step h3 { font: 700 10pt/1.25 "Instrument Sans", sans-serif; margin: 2mm 0 1mm; }
+  .step .n { font: 700 26pt/0.9 "Bricolage", "Work Sans", sans-serif; color: var(--signal); }
+  .step h3 { font: 700 10pt/1.25 "Work Sans", sans-serif; margin: 2mm 0 1mm; }
   .step p { color: var(--ink-2); font-size: 8.7pt; }
-  pre { font: 7.3pt/1.65 "Geist Mono", monospace; background: var(--ink); color: #e9ecf1; padding: 2.8mm 3.2mm; margin-top: 2mm; white-space: pre; overflow: hidden; }
+  pre { font: 7.3pt/1.65 "Plex Mono", monospace; background: var(--ink); color: #e9ecf1; padding: 2.8mm 3.2mm; margin-top: 2mm; white-space: pre; overflow: hidden; }
   pre .p { color: var(--lime); }
   pre .c { color: #7d838f; }
 
   /* prompts */
   .prompts { display: grid; grid-template-columns: 1fr 1fr; column-gap: 8mm; }
   .prompt { display: grid; grid-template-columns: 9mm 1fr; padding: 2.8mm 0 3mm; border-bottom: 0.25mm solid var(--rule); }
-  .prompt .k { font: 7pt "Geist Mono", monospace; color: var(--signal); padding-top: 1.1mm; }
-  .prompt q { font: italic 400 12.2pt/1.2 "Instrument Serif", Georgia, serif; quotes: "“" "”"; display: block; }
-  .prompt .d { display: block; margin-top: 1.4mm; font: 6.9pt "Geist Mono", monospace; color: var(--ink-3); letter-spacing: 0.02em; }
+  .prompt .k { font: 7pt "Plex Mono", monospace; color: var(--signal); padding-top: 1.1mm; }
+  .prompt q { font: italic 400 10.6pt/1.35 "Work Sans", sans-serif; quotes: "“" "”"; display: block; }
+  .prompt .d { display: block; margin-top: 1.4mm; font: 6.9pt "Plex Mono", monospace; color: var(--ink-3); letter-spacing: 0.02em; }
   .prompt .d::before { content: "→ "; color: var(--signal); }
 
 
   /* glossary */
   .gloss { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4mm; }
   .term { background: #fff; border: 0.25mm solid var(--rule); padding: 3mm 3.2mm 3.4mm; }
-  .term b { display: block; font: italic 400 13pt/1.1 "Instrument Serif", Georgia, serif; color: var(--signal); margin-bottom: 1.4mm; }
+  .term b { display: block; font: 700 11pt/1.15 "Bricolage", "Work Sans", sans-serif; color: var(--signal); margin-bottom: 1.4mm; }
   .term p { font-size: 8pt; line-height: 1.42; color: var(--ink-2); }
 
   /* setup page */
   .band { margin: 0 -15mm; padding: 14mm 15mm 0; display: flex; justify-content: space-between; align-items: baseline; }
-  .band .big { font: italic 400 34pt/1 "Instrument Serif", Georgia, serif; letter-spacing: -0.015em; }
-  .band .big b { font-style: normal; font-weight: 400; color: var(--signal); }
+  .band .big { font: 700 28pt/1.05 "Bricolage", "Work Sans", sans-serif; letter-spacing: -0.015em; }
+  .band .big b { font-style: normal; font-weight: 700; color: var(--signal); }
   .band-sub { margin-top: 4mm; color: var(--ink-2); font-size: 10pt; max-width: 140mm; }
   .bigstep { display: grid; grid-template-columns: 16mm minmax(0, 1fr) 50mm; gap: 6mm; padding: 6.5mm 0 6.7mm; border-bottom: 0.25mm solid var(--rule); }
   .bigstep:first-child { border-top: 0.35mm solid var(--ink); }
-  .bigstep .n { font: italic 400 40pt/0.85 "Instrument Serif", Georgia, serif; color: var(--signal); }
-  .bigstep h3 { font: 700 11.5pt/1.25 "Instrument Sans", sans-serif; margin-bottom: 1.6mm; }
+  .bigstep .n { font: 700 34pt/0.85 "Bricolage", "Work Sans", sans-serif; color: var(--signal); }
+  .bigstep h3 { font: 700 11.5pt/1.25 "Work Sans", sans-serif; margin-bottom: 1.6mm; }
   .bigstep ol { margin-left: 4.2mm; color: var(--ink-2); font-size: 9.2pt; }
   .bigstep ol li { margin-bottom: 0.8mm; padding-left: 0.6mm; }
-  .bigstep ol li::marker { font: 7pt "Geist Mono", monospace; color: var(--ink-3); }
+  .bigstep ol li::marker { font: 7pt "Plex Mono", monospace; color: var(--ink-3); }
   .see { background: #fff; border-left: 1mm solid var(--lime); padding: 2.6mm 3.2mm; align-self: start; }
   .see .label { color: var(--ink); display: block; margin-bottom: 1.2mm; }
   .see p { font-size: 8.4pt; color: var(--ink-2); line-height: 1.42; }
   .bigstep pre { margin-top: 2.4mm; font-size: 6.9pt; }
-  .kbd { white-space: nowrap; font: 7.6pt "Geist Mono", monospace; border: 0.25mm solid var(--ink-3); border-bottom-width: 0.6mm; border-radius: 0.8mm; padding: 0 1mm; background: #fff; }
+  .kbd { white-space: nowrap; font: 7.6pt "Plex Mono", monospace; border: 0.25mm solid var(--ink-3); border-bottom-width: 0.6mm; border-radius: 0.8mm; padding: 0 1mm; background: #fff; }
   .tip { margin-top: 8mm; display: grid; grid-template-columns: 26mm 1fr; gap: 6mm; background: var(--ink); color: #e9ecf1; padding: 4.5mm 5mm; }
   .tip .label { color: var(--lime); padding-top: 0.8mm; }
   .tip p { font-size: 10pt; color: #e9ecf1; }
-  .tip p em { font: italic 400 12.5pt "Instrument Serif", Georgia, serif; color: #b9c0ff; }
+  .tip p em { font-style: normal; font: 700 11.5pt "Bricolage", "Work Sans", sans-serif; color: #b9c0ff; }
 
   /* page 3 */
   .p3 .prompt { padding: 3.2mm 0 3.4mm; }
@@ -137,13 +137,13 @@
 <style>
   .trouble p { color: var(--ink-2); font-size: 8.9pt; margin-bottom: 2mm; }
   table { width: 100%; border-collapse: collapse; font-size: 8.9pt; }
-  th { text-align: left; font: 6.6pt "Geist Mono", monospace; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-3); padding: 0 0 1.6mm; border-bottom: 0.35mm solid var(--ink); }
+  th { text-align: left; font: 6.6pt "Plex Mono", monospace; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-3); padding: 0 0 1.6mm; border-bottom: 0.35mm solid var(--ink); }
   td { padding: 2.1mm 0; border-bottom: 0.25mm solid var(--rule); vertical-align: top; color: var(--ink-2); }
   td:first-child { color: var(--ink); padding-right: 5mm; }
   .notes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5mm; }
   .note { border-top: 1.2mm solid var(--signal); background: #fff; padding: 3mm 3.2mm 3.4mm; }
   .note:last-child { border-top-color: var(--ink); }
-  .note h3 { font: 700 9pt/1.25 "Instrument Sans", sans-serif; margin-bottom: 1.4mm; }
+  .note h3 { font: 700 9pt/1.25 "Work Sans", sans-serif; margin-bottom: 1.4mm; }
   .note p { font-size: 8pt; color: var(--ink-2); line-height: 1.45; }
 </style>
 
@@ -169,7 +169,7 @@
       <circle cx="100" cy="192" r="5.5" fill="#0f1217" stroke="#e9ecf1" stroke-width="1.2"/>
       <circle cx="8" cy="100" r="5.5" fill="#0f1217" stroke="#e9ecf1" stroke-width="1.2"/>
       <circle cx="100" cy="100" r="3.2" fill="#d3f53b"/>
-      <g font-family="Geist Mono" font-size="6.2" fill="#7d838f" letter-spacing="0.6">
+      <g font-family="Plex Mono" font-size="6.2" fill="#7d838f" letter-spacing="0.6">
         <text x="104" y="24">A</text><text x="172" y="94">B</text><text x="104" y="182">C</text><text x="22" y="94">D</text>
       </g>
     </svg>
@@ -187,12 +187,12 @@
   <section>
     <div class="sec-head"><span class="num">§ 02</span><h2>How it works, in one picture</h2><span class="label">nothing leaves your computer</span></div>
     <div class="figure">
-      <svg viewBox="0 0 520 112" font-family="Instrument Sans" fill="none">
+      <svg viewBox="0 0 520 112" font-family="Work Sans" fill="none">
         <line x1="40" y1="44" x2="480" y2="44" stroke="#c9cdd4" stroke-width="1"/>
         <line x1="40" y1="44" x2="333" y2="44" stroke="#0f1217" stroke-width="1.4"/>
         <line x1="187" y1="44" x2="333" y2="44" stroke="#2b3cff" stroke-width="2.4"/>
         <line x1="333" y1="44" x2="480" y2="44" stroke="#0f1217" stroke-width="1.4" stroke-dasharray="3 3"/>
-        <g font-family="Geist Mono" font-size="6.6" fill="#7a808b" text-anchor="middle" letter-spacing="0.8">
+        <g font-family="Plex Mono" font-size="6.6" fill="#7a808b" text-anchor="middle" letter-spacing="0.8">
           <text x="113" y="36">YOUR REQUEST</text>
           <text x="260" y="36" fill="#2b3cff">TRANSLATED</text>
           <text x="406" y="36">COMMANDS FOR RHINO</text>
@@ -202,7 +202,7 @@
         <circle cx="187" cy="44" r="17" stroke="#2b3cff" stroke-width="0.8"/>
         <circle cx="333" cy="44" r="9" fill="#fff" stroke="#0f1217" stroke-width="1.4"/>
         <circle cx="480" cy="44" r="9" fill="#d3f53b" stroke="#0f1217" stroke-width="1.4"/>
-        <g font-family="Geist Mono" font-size="6.5" text-anchor="middle">
+        <g font-family="Plex Mono" font-size="6.5" text-anchor="middle">
           <text x="40" y="46.5" fill="#fff">A</text><text x="187" y="46.5" fill="#fff">B</text>
           <text x="333" y="46.5" fill="#0f1217">C</text><text x="480" y="46.5" fill="#0f1217">D</text>
         </g>
