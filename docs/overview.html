@@ -94,53 +94,69 @@
   .prompt .d { display: block; margin-top: 1.4mm; font: 6.9pt "Geist Mono", monospace; color: var(--ink-3); letter-spacing: 0.02em; }
   .prompt .d::before { content: "→ "; color: var(--signal); }
 
-  /* page 2 breathes more: it carries less text */
-  .p2 section { margin-top: 11mm; }
-  .p2 .prompt { padding: 3.8mm 0 4mm; }
-  .p2 .prompt q { font-size: 13pt; }
-  .p2 td { padding: 2.8mm 0; }
-  .p2 .note { padding: 3.8mm 3.6mm 4.4mm; }
 
-  /* troubleshooting */
-  .trouble { display: grid; grid-template-columns: 68mm 1fr; gap: 7mm; align-items: start; }
+  /* glossary */
+  .gloss { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4mm; }
+  .term { background: #fff; border: 0.25mm solid var(--rule); padding: 3mm 3.2mm 3.4mm; }
+  .term b { display: block; font: italic 400 13pt/1.1 "Instrument Serif", Georgia, serif; color: var(--signal); margin-bottom: 1.4mm; }
+  .term p { font-size: 8pt; line-height: 1.42; color: var(--ink-2); }
+
+  /* setup page */
+  .band { margin: 0 -15mm; padding: 14mm 15mm 0; display: flex; justify-content: space-between; align-items: baseline; }
+  .band .big { font: italic 400 34pt/1 "Instrument Serif", Georgia, serif; letter-spacing: -0.015em; }
+  .band .big b { font-style: normal; font-weight: 400; color: var(--signal); }
+  .band-sub { margin-top: 4mm; color: var(--ink-2); font-size: 10pt; max-width: 140mm; }
+  .bigstep { display: grid; grid-template-columns: 16mm minmax(0, 1fr) 50mm; gap: 6mm; padding: 6.5mm 0 6.7mm; border-bottom: 0.25mm solid var(--rule); }
+  .bigstep:first-child { border-top: 0.35mm solid var(--ink); }
+  .bigstep .n { font: italic 400 40pt/0.85 "Instrument Serif", Georgia, serif; color: var(--signal); }
+  .bigstep h3 { font: 700 11.5pt/1.25 "Instrument Sans", sans-serif; margin-bottom: 1.6mm; }
+  .bigstep ol { margin-left: 4.2mm; color: var(--ink-2); font-size: 9.2pt; }
+  .bigstep ol li { margin-bottom: 0.8mm; padding-left: 0.6mm; }
+  .bigstep ol li::marker { font: 7pt "Geist Mono", monospace; color: var(--ink-3); }
+  .see { background: #fff; border-left: 1mm solid var(--lime); padding: 2.6mm 3.2mm; align-self: start; }
+  .see .label { color: var(--ink); display: block; margin-bottom: 1.2mm; }
+  .see p { font-size: 8.4pt; color: var(--ink-2); line-height: 1.42; }
+  .bigstep pre { margin-top: 2.4mm; font-size: 6.9pt; }
+  .kbd { white-space: nowrap; font: 7.6pt "Geist Mono", monospace; border: 0.25mm solid var(--ink-3); border-bottom-width: 0.6mm; border-radius: 0.8mm; padding: 0 1mm; background: #fff; }
+  .tip { margin-top: 8mm; display: grid; grid-template-columns: 26mm 1fr; gap: 6mm; background: var(--ink); color: #e9ecf1; padding: 4.5mm 5mm; }
+  .tip .label { color: var(--lime); padding-top: 0.8mm; }
+  .tip p { font-size: 10pt; color: #e9ecf1; }
+  .tip p em { font: italic 400 12.5pt "Instrument Serif", Georgia, serif; color: #b9c0ff; }
+
+  /* page 3 */
+  .p3 .prompt { padding: 3.2mm 0 3.4mm; }
+  .p3 td { padding: 2.6mm 0; }
+  .p3 td:first-child { width: 62mm; white-space: normal; font-style: italic; }
+  .p3 .notes .note { padding: 3.4mm 3.4mm 3.8mm; }
+
+  footer { margin-top: auto; display: flex; justify-content: space-between; align-items: center; border-top: 0.25mm solid var(--rule); padding-top: 2.6mm; }
+  footer .label b { color: var(--ink); font-weight: 400; }
+</style>
+</head>
+<body>
+<style>
   .trouble p { color: var(--ink-2); font-size: 8.9pt; margin-bottom: 2mm; }
-  table { width: 100%; border-collapse: collapse; font-size: 8.6pt; }
+  table { width: 100%; border-collapse: collapse; font-size: 8.9pt; }
   th { text-align: left; font: 6.6pt "Geist Mono", monospace; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-3); padding: 0 0 1.6mm; border-bottom: 0.35mm solid var(--ink); }
   td { padding: 2.1mm 0; border-bottom: 0.25mm solid var(--rule); vertical-align: top; color: var(--ink-2); }
-  td:first-child { width: 30mm; color: var(--ink); white-space: nowrap; padding-right: 3mm; }
-  .chip { font: 6.6pt "Geist Mono", monospace; padding: 0.3mm 1.2mm; margin-left: 1mm; letter-spacing: 0.06em; }
-  .fail { background: var(--ink); color: var(--lime); }
-  .warn { background: var(--signal-soft); color: var(--signal); }
-
-  /* notes */
+  td:first-child { color: var(--ink); padding-right: 5mm; }
   .notes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5mm; }
   .note { border-top: 1.2mm solid var(--signal); background: #fff; padding: 3mm 3.2mm 3.4mm; }
   .note:last-child { border-top-color: var(--ink); }
   .note h3 { font: 700 9pt/1.25 "Instrument Sans", sans-serif; margin-bottom: 1.4mm; }
   .note p { font-size: 8pt; color: var(--ink-2); line-height: 1.45; }
-
-  footer { margin-top: auto; display: flex; justify-content: space-between; align-items: center; border-top: 0.25mm solid var(--rule); padding-top: 2.6mm; }
-  footer .label b { color: var(--ink); font-weight: 400; }
-
-  /* page 2 top band */
-  .band { margin: 0 -15mm; padding: 14mm 15mm 0; display: flex; justify-content: space-between; align-items: baseline; }
-  .band .big { font: italic 400 34pt/1 "Instrument Serif", Georgia, serif; letter-spacing: -0.015em; }
-  .band .big b { font-style: normal; font-weight: 400; color: var(--signal); }
 </style>
-</head>
-<body>
 
-<!-- ================= PAGE 1 ================= -->
+<!-- ================= PAGE 1 · what and why ================= -->
 <div class="page">
   <header class="hero">
     <div class="top">
-      <span class="label">Claude Code plugin <b>/</b> field notes</span>
-      <span class="label status"><i></i>v0.2.1 · tested on Windows</span>
+      <span class="label">A plugin for Claude Code <b>/</b> field notes</span>
+      <span class="label status"><i></i>free · works on Windows</span>
     </div>
     <h1>Talk to Rhino<br><em>from Claude.</em></h1>
-    <p class="lede">Connects Claude Code to Rhino 8 and Grasshopper. Describe what you want in plain words. Claude builds the geometry, checks it and shows you the viewport.</p>
+    <p class="lede">Type what you want, like <i>“make a 22&nbsp;cm cylinder split into four parts”</i>, and Claude models it in Rhino for you. It can also look at your viewport and tell you what it sees.</p>
 
-    <!-- orbit motif: four nodes on a ring, one live -->
     <svg class="orbit" viewBox="0 0 200 200" fill="none">
       <circle cx="100" cy="100" r="92" stroke="#2c323d" stroke-width="0.6"/>
       <circle cx="100" cy="100" r="66" stroke="#2c323d" stroke-width="0.6" stroke-dasharray="1.5 3"/>
@@ -160,126 +176,156 @@
   </header>
 
   <section>
-    <div class="sec-head"><span class="num">§ 01</span><h2>What it does</h2><span class="label">three jobs</span></div>
+    <div class="sec-head"><span class="num">§ 01</span><h2>What you can do with it</h2><span class="label">in plain words</span></div>
     <div class="three">
-      <div class="feat"><span class="k">01.1</span><h3>Connects by itself</h3><p>Finds McNeel's Rhino MCP router on your computer. No paths to copy, and Rhino updates don't break it.</p></div>
-      <div class="feat"><span class="k">01.2</span><h3>Lets Claude see</h3><p>Viewport captures reach Claude as real images, so it can look at the model, spot mistakes and fix them.</p></div>
-      <div class="feat"><span class="k">01.3</span><h3>Explains problems</h3><p>The <code>rhino-doctor</code> check says what's wrong and how to fix it, in plain words.</p></div>
+      <div class="feat"><span class="k">01.1</span><h3>Model by describing</h3><p>Ask for shapes, layers, joints or a Grasshopper definition in a sentence. Claude does the clicking.</p></div>
+      <div class="feat"><span class="k">01.2</span><h3>Get a second pair of eyes</h3><p>Claude can take a picture of your viewport, look at it, and point out or fix what looks wrong.</p></div>
+      <div class="feat"><span class="k">01.3</span><h3>Help when it won't connect</h3><p>If Claude can't reach Rhino, it runs a check and tells you, step by step, how to fix it.</p></div>
     </div>
   </section>
 
   <section>
-    <div class="sec-head"><span class="num">§ 02</span><h2>How it works</h2><span class="label">all local</span></div>
+    <div class="sec-head"><span class="num">§ 02</span><h2>How it works, in one picture</h2><span class="label">nothing leaves your computer</span></div>
     <div class="figure">
       <svg viewBox="0 0 520 112" font-family="Instrument Sans" fill="none">
-        <!-- path -->
         <line x1="40" y1="44" x2="480" y2="44" stroke="#c9cdd4" stroke-width="1"/>
         <line x1="40" y1="44" x2="333" y2="44" stroke="#0f1217" stroke-width="1.4"/>
         <line x1="187" y1="44" x2="333" y2="44" stroke="#2b3cff" stroke-width="2.4"/>
         <line x1="333" y1="44" x2="480" y2="44" stroke="#0f1217" stroke-width="1.4" stroke-dasharray="3 3"/>
-        <!-- segment labels -->
         <g font-family="Geist Mono" font-size="6.6" fill="#7a808b" text-anchor="middle" letter-spacing="0.8">
-          <text x="113" y="36">MCP · STDIO</text>
-          <text x="260" y="36" fill="#2b3cff">MCP · STDIO</text>
-          <text x="406" y="36">HTTP · LOCALHOST:10500</text>
+          <text x="113" y="36">YOUR REQUEST</text>
+          <text x="260" y="36" fill="#2b3cff">TRANSLATED</text>
+          <text x="406" y="36">COMMANDS FOR RHINO</text>
         </g>
-        <!-- nodes -->
         <circle cx="40" cy="44" r="9" fill="#0f1217"/>
         <circle cx="187" cy="44" r="12" fill="#2b3cff"/>
         <circle cx="187" cy="44" r="17" stroke="#2b3cff" stroke-width="0.8"/>
         <circle cx="333" cy="44" r="9" fill="#fff" stroke="#0f1217" stroke-width="1.4"/>
         <circle cx="480" cy="44" r="9" fill="#d3f53b" stroke="#0f1217" stroke-width="1.4"/>
         <g font-family="Geist Mono" font-size="6.5" text-anchor="middle">
-          <text x="40" y="46.5" fill="#fff">A</text>
-          <text x="187" y="46.5" fill="#fff">B</text>
-          <text x="333" y="46.5" fill="#0f1217">C</text>
-          <text x="480" y="46.5" fill="#0f1217">D</text>
+          <text x="40" y="46.5" fill="#fff">A</text><text x="187" y="46.5" fill="#fff">B</text>
+          <text x="333" y="46.5" fill="#0f1217">C</text><text x="480" y="46.5" fill="#0f1217">D</text>
         </g>
-        <!-- captions -->
         <g text-anchor="middle">
           <text x="40" y="78" font-size="11" font-weight="700" fill="#0f1217">Claude Code</text>
-          <text x="40" y="92" font-size="8.4" fill="#3c424d">you ask in words</text>
+          <text x="40" y="92" font-size="8.4" fill="#3c424d">the AI you talk to</text>
           <text x="187" y="78" font-size="11" font-weight="700" fill="#2b3cff">This plugin</text>
-          <text x="187" y="92" font-size="8.4" fill="#3c424d">finds the router, fixes images</text>
-          <text x="333" y="78" font-size="11" font-weight="700" fill="#0f1217">MCP router</text>
+          <text x="187" y="92" font-size="8.4" fill="#3c424d">the adapter</text>
+          <text x="333" y="78" font-size="11" font-weight="700" fill="#0f1217">Rhino's connector</text>
           <text x="333" y="92" font-size="8.4" fill="#3c424d">made by McNeel</text>
           <text x="480" y="78" font-size="11" font-weight="700" fill="#0f1217">Rhino 8</text>
-          <text x="480" y="92" font-size="8.4" fill="#3c424d">+ Grasshopper</text>
+          <text x="480" y="92" font-size="8.4" fill="#3c424d">does the modelling</text>
         </g>
       </svg>
-      <div class="figcap"><span class="label">Fig. 1</span><span>Everything runs on your computer. The plugin starts McNeel's router and passes messages through; the modelling tools come from Rhino.</span></div>
+      <div class="figcap"><span class="label">Fig. 1</span><span>Think of a travel adapter. Claude and Rhino have different plugs; this plugin makes them fit. Rhino still does all the modelling, and everything happens on your own computer.</span></div>
     </div>
   </section>
 
   <section>
-    <div class="sec-head"><span class="num">§ 03</span><h2>Get started</h2><span class="label">about five minutes</span></div>
-    <div class="steps">
-      <div class="step"><div class="n">1</div><h3>Install the Rhino side</h3><p>In Rhino 8 type <code>_PackageManager</code>, install <b>Rhino-MCP-Platform</b>, restart Rhino.</p></div>
-      <div class="step"><div class="n">2</div><h3>Add the plugin</h3><p>Needs Node.js 18 or newer.</p>
-<pre><span class="p">$</span> claude plugin marketplace add \
-    filippovisentin/claude-rhino-plugin
-<span class="p">$</span> claude plugin install rhino@claude-rhino</pre></div>
-      <div class="step"><div class="n">3</div><h3>Say hello</h3><p>With Rhino open, start a new Claude session and ask <i>“What's in my Rhino document?”</i></p></div>
+    <div class="sec-head"><span class="num">§ 03</span><h2>Words you'll meet</h2><span class="label">a tiny glossary</span></div>
+    <div class="gloss">
+      <div class="term"><b>Claude Code</b><p>The Claude app you chat with. It can use programs on your computer when you allow it.</p></div>
+      <div class="term"><b>Plugin</b><p>An add-on that teaches an app a new skill. This one teaches Claude to use Rhino.</p></div>
+      <div class="term"><b>MCP</b><p>The shared language AI apps use to talk to other programs. Like USB, but for software.</p></div>
+      <div class="term"><b>Terminal</b><p>A window where you type commands instead of clicking. You'll use it once, to install.</p></div>
+      <div class="term"><b>Node.js</b><p>A free helper program the plugin needs. Install it once, then forget about it.</p></div>
     </div>
   </section>
 
   <footer>
-    <span class="label"><b>Rhino plugin for Claude Code</b> · 1 / 2</span>
+    <span class="label"><b>Rhino plugin for Claude Code</b> · 1 / 3 · what it is</span>
     <span class="label">github.com/filippovisentin/claude-rhino-plugin</span>
   </footer>
 </div>
 
-<!-- ================= PAGE 2 ================= -->
-<div class="page p2">
+<!-- ================= PAGE 2 · setup ================= -->
+<div class="page">
+  <div class="band">
+    <span class="big">Set it up <b>once.</b></span>
+    <span class="label">field notes · 2 / 3</span>
+  </div>
+  <p class="band-sub">Four steps, about ten minutes. You only do this the first time. Copy the grey text exactly as it is.</p>
+
+  <section style="margin-top:7mm">
+    <div class="bigstep">
+      <div class="n">1</div>
+      <div><h3>Install Node.js</h3>
+        <ol><li>Go to <b>nodejs.org</b> and download the version marked <b>LTS</b>.</li><li>Open the file you downloaded.</li><li>Click <b>Next</b> on every screen, then <b>Finish</b>.</li></ol></div>
+      <div class="see"><span class="label">You'll see</span><p>Nothing special happens afterwards. That's normal: it works in the background.</p></div>
+    </div>
+    <div class="bigstep">
+      <div class="n">2</div>
+      <div><h3>Add Rhino's connector</h3>
+        <ol><li>Open Rhino 8. In the command line at the top, type <code>_PackageManager</code> and press <span class="kbd">Enter</span>.</li><li>Search for <b>Rhino-MCP-Platform</b> and click <b>Install</b>.</li><li>Close Rhino and open it again.</li></ol></div>
+      <div class="see"><span class="label">You'll see</span><p>Rhino-MCP-Platform in the <b>Installed</b> list of the Package Manager.</p></div>
+    </div>
+    <div class="bigstep">
+      <div class="n">3</div>
+      <div><h3>Add the plugin to Claude</h3>
+        <ol><li>Open a terminal. <b>Windows:</b> Start menu, type <b>PowerShell</b>, open it. <b>Mac:</b> press <span class="kbd">⌘ Space</span>, type <b>Terminal</b>.</li><li>Copy the first line below, paste it, press <span class="kbd">Enter</span>. Then do the same with the second line.</li></ol>
+<pre>claude plugin marketplace add filippovisentin/claude-rhino-plugin
+claude plugin install rhino@claude-rhino</pre></div>
+      <div class="see"><span class="label">You'll see</span><p>A line ending in <b>Successfully installed plugin</b>. You can close the terminal.</p></div>
+    </div>
+    <div class="bigstep">
+      <div class="n">4</div>
+      <div><h3>Say hello</h3>
+        <ol><li>Open Rhino first, and leave it open.</li><li>Start a <b>new</b> session in Claude Code.</li><li>Ask: <i>“What's in my Rhino document?”</i></li></ol></div>
+      <div class="see"><span class="label">You'll see</span><p>Claude lists your layers and objects. If Claude asks for permission, read the request and click <b>Allow</b>.</p></div>
+    </div>
+  </section>
+
+  <div class="tip"><span class="label">From now on</span><p>Open Rhino, then open Claude, and just ask. <em>That's the whole routine.</em></p></div>
+
+  <footer>
+    <span class="label"><b>Rhino plugin for Claude Code</b> · 2 / 3 · setup</span>
+    <span class="label">github.com/filippovisentin/claude-rhino-plugin</span>
+  </footer>
+</div>
+
+<!-- ================= PAGE 3 · use and help ================= -->
+<div class="page p3">
   <div class="band">
     <span class="big">Ask it <b>anything</b> you'd click.</span>
-    <span class="label">field notes · 2 / 2</span>
+    <span class="label">field notes · 3 / 3</span>
   </div>
 
-  <section style="margin-top:6mm">
-    <div class="sec-head"><span class="num">§ 04</span><h2>Things to ask Claude</h2><span class="label">plain words in, geometry out</span></div>
+  <section style="margin-top:7mm">
+    <div class="sec-head"><span class="num">§ 04</span><h2>Things to try</h2><span class="label">copy one to start</span></div>
     <div class="prompts">
-      <div class="prompt"><span class="k">04.1</span><div><q>Model a 22 cm cylinder split into four blocks by function, each on its own layer.</q><span class="d">separate, named solids</span></div></div>
-      <div class="prompt"><span class="k">04.2</span><div><q>Add a bayonet joint between the slats and the body, and check it for clashes.</q><span class="d">joint modelled, turn tested for overlaps</span></div></div>
-      <div class="prompt"><span class="k">04.3</span><div><q>Show me the perspective view in ghosted mode.</q><span class="d">Claude sees the capture too</span></div></div>
-      <div class="prompt"><span class="k">04.4</span><div><q>Make a Grasshopper definition with a slider for the radius.</q><span class="d">components placed and wired</span></div></div>
-      <div class="prompt"><span class="k">04.5</span><div><q>List every object on the Slats layer with its volume.</q><span class="d">read only, nothing changes</span></div></div>
-      <div class="prompt"><span class="k">04.6</span><div><q>Save the file as purifier-v2.3dm in my Documents.</q><span class="d">saves when you ask</span></div></div>
+      <div class="prompt"><span class="k">04.1</span><div><q>Model a 22 cm cylinder split into four blocks by function, each on its own layer.</q><span class="d">builds separate, named parts</span></div></div>
+      <div class="prompt"><span class="k">04.2</span><div><q>Add a twist-lock joint between the top and the body, and check the parts don't collide.</q><span class="d">models the joint, then tests it</span></div></div>
+      <div class="prompt"><span class="k">04.3</span><div><q>Show me the perspective view in ghosted mode.</q><span class="d">takes a picture Claude can see</span></div></div>
+      <div class="prompt"><span class="k">04.4</span><div><q>Make a Grasshopper definition with a slider for the radius.</q><span class="d">places and wires the components</span></div></div>
+      <div class="prompt"><span class="k">04.5</span><div><q>How big is everything on the Slats layer?</q><span class="d">only reads, changes nothing</span></div></div>
+      <div class="prompt"><span class="k">04.6</span><div><q>Save the file as purifier-v2.3dm in my Documents.</q><span class="d">saves only when you ask</span></div></div>
     </div>
   </section>
 
   <section>
-    <div class="sec-head"><span class="num">§ 05</span><h2>If something goes wrong</h2><span class="label">run the doctor</span></div>
-    <div class="trouble">
-      <div>
-        <p>Ask Claude <i>“Rhino isn't connecting”</i>, or run the check yourself from the plugin folder.</p>
-<pre><span class="p">$</span> node scripts/doctor.mjs
-<span class="c">[OK  ] package  0.3.0 (Rhino 8.0)
-[OK  ] mcp      router 0.3.0, 32 tools
-[OK  ] rhino    localhost:10500</span></pre>
-      </div>
-      <table>
-        <tr><th>You see</th><th>What to do</th></tr>
-        <tr><td>package<span class="chip fail">FAIL</span></td><td>Install Rhino-MCP-Platform from <code>_PackageManager</code>, restart Rhino.</td></tr>
-        <tr><td>config<span class="chip warn">WARN</span></td><td>Another Rhino MCP server is registered, often the community <code>rhinomcp</code>. Remove it with <code>claude mcp remove</code>.</td></tr>
-        <tr><td>rhino<span class="chip warn">WARN</span></td><td>No Rhino running. Open Rhino 8, or let Claude start one.</td></tr>
-        <tr><td>images as text</td><td>The session predates your update. Start a new session.</td></tr>
-      </table>
-    </div>
+    <div class="sec-head"><span class="num">§ 05</span><h2>If it doesn't work</h2><span class="label">most common fixes</span></div>
+    <table>
+      <tr><th>What happens</th><th>What to do</th></tr>
+      <tr><td>Claude says it can't reach Rhino.</td><td>Make sure Rhino is open. Then start a new Claude session.</td></tr>
+      <tr><td>Claude says the router or connector is missing.</td><td>Step 2 didn't finish. Install Rhino-MCP-Platform again and reopen Rhino.</td></tr>
+      <tr><td>The terminal says <b>claude</b> or <b>node</b> is not recognised.</td><td>Close the terminal, open a new one and try again. If it persists, redo step 1.</td></tr>
+      <tr><td>You get a long block of letters instead of a picture.</td><td>You're in an old session. Start a new one.</td></tr>
+      <tr><td>Still stuck?</td><td>Ask Claude: <i>“Rhino isn't connecting, can you check?”</i> It runs a check and explains the fix.</td></tr>
+    </table>
   </section>
 
   <section>
-    <div class="sec-head"><span class="num">§ 06</span><h2>Good to know</h2><span class="label">safety</span></div>
+    <div class="sec-head"><span class="num">§ 06</span><h2>Play it safe</h2><span class="label">four habits</span></div>
     <div class="notes">
-      <div class="note"><h3>It can run code</h3><p>Python, C# and Rhino commands are part of the toolset. Keep permission prompts on unless you trust the task.</p></div>
-      <div class="note"><h3>Unknown files</h3><p>Text inside a model (object names, notes) reaches Claude. Treat models from strangers as untrusted input.</p></div>
-      <div class="note"><h3>Secrets stay private</h3><p>The doctor never prints other MCP servers' arguments or environment, where API keys may live.</p></div>
-      <div class="note"><h3>Unofficial</h3><p>Independent and MIT licensed. Rhino and Grasshopper are trademarks of Robert McNeel &amp; Associates.</p></div>
+      <div class="note"><h3>Read before you allow</h3><p>Claude asks before running anything in Rhino. Click Allow only if the request matches what you asked for.</p></div>
+      <div class="note"><h3>Save a copy first</h3><p>Before big changes, save your file under a new name. If you don't like the result, you can always go back to it.</p></div>
+      <div class="note"><h3>Files from strangers</h3><p>Text hidden inside a model is read by Claude. Be careful with models you didn't make.</p></div>
+      <div class="note"><h3>Unofficial</h3><p>A free, independent project (MIT licence). Rhino and Grasshopper are trademarks of Robert McNeel &amp; Associates.</p></div>
     </div>
   </section>
 
   <footer>
-    <span class="label"><b>Rhino plugin for Claude Code</b> · v0.2.1 · MIT</span>
+    <span class="label"><b>Rhino plugin for Claude Code</b> · 3 / 3 · use &amp; help</span>
     <span class="label">github.com/filippovisentin/claude-rhino-plugin</span>
   </footer>
 </div>

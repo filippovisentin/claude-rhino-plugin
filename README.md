@@ -2,7 +2,7 @@
 
 A Claude Code plugin that connects Claude to **Rhino 8** (and Grasshopper) through McNeel's official **Rhino-MCP-Platform** router.
 
-**New here? Read the two-page overview: [docs/rhino-plugin-overview.pdf](docs/rhino-plugin-overview.pdf)**
+**New here? Read the three-page overview, written for designers: [docs/rhino-plugin-overview.pdf](docs/rhino-plugin-overview.pdf)**
 
 It adds:
 
