@@ -1,7 +1,7 @@
 {
   "name": "rhino",
   "version": "0.2.1",
-  "repository": "https://github.com/filippovise/claude-rhino-plugin",
+  "repository": "https://github.com/filippovisentin/claude-rhino-plugin",
   "description": "Connects Claude Code to Rhino 8 through McNeel's Rhino-MCP-Platform router, with a doctor skill for connection problems.",
   "author": {
     "name": "Filippo Antonio Visentin"

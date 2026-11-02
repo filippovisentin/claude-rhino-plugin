@@ -21,7 +21,7 @@ Tested on Windows 11 (x64) with Rhino-MCP-Platform 0.3.0. The macOS path lookup 
 ## Install
 
 ```bash
-claude plugin marketplace add filippovise/claude-rhino-plugin
+claude plugin marketplace add filippovisentin/claude-rhino-plugin
 claude plugin install rhino@claude-rhino
 ```
 
