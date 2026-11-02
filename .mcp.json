@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "rhino": {
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/launch-router.mjs"]
+    }
+  }
+}

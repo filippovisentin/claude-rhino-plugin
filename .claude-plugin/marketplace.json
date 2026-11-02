@@ -1,0 +1,16 @@
+{
+  "name": "claude-rhino",
+  "owner": {
+    "name": "Filippo Antonio Visentin"
+  },
+  "metadata": {
+    "description": "Claude Code plugins for Rhino 8 and Grasshopper."
+  },
+  "plugins": [
+    {
+      "name": "rhino",
+      "source": "./",
+      "description": "Connects Claude Code to Rhino 8 through McNeel's Rhino-MCP-Platform router, with a doctor skill for connection problems."
+    }
+  ]
+}
