@@ -2,6 +2,8 @@
 
 A Claude Code plugin that connects Claude to **Rhino 8** (and Grasshopper) through McNeel's official **Rhino-MCP-Platform** router.
 
+**New here? Read the two-page overview: [docs/rhino-plugin-overview.pdf](docs/rhino-plugin-overview.pdf)**
+
 It adds:
 
 - **`rhino` MCP server**: a small Node launcher that finds the newest installed `rhino-mcp-router` and runs it over stdio. No version-specific paths in your config, so Rhino package updates don't break it.
