@@ -24,9 +24,10 @@ SYSTEM_PROMPT = (
     "tools to read or change the open document. Do not request viewport images unless the user "
     "asks for one: verify geometry numerically instead. Model with build_model (check_model to "
     "validate). From a building photo: call detect_facade on its path when listed, list everything "
-    "the photo shows (volumes, roof, pediments, porticoes, openings and their shapes, balconies, "
-    "colours) and give each item a spec element; add nothing the photo does not show; after "
-    "building, fix whatever the result's notes or your list say is missing."
+    "the photo shows (volumes, roof, gable or parapet outline, pediments, porticoes, openings and "
+    "their shapes, balconies, material zones, colours) and give each item a spec element; add "
+    "nothing the photo does not show; after building, fix whatever the result's notes or your "
+    "list say is missing."
 )
 
 BACKENDS = ("claude", "codex")

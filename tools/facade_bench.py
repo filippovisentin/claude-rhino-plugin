@@ -190,7 +190,8 @@ def prep(fid, size=768):
 
 COLORS = {"window": "#00a0ff", "door": "#ff8000", "shop": "#ff00ff", "balcony": "#00ff00", "cornice": "#ff0000",
           "molding": "#ffff00", "pillar": "#00ffff", "sill": "#8000ff", "blind": "#008000", "deco": "#804000",
-          "rustic": "#a0a0a0", "quoin": "#606060", "spandrel": "#303840", "pediment": "#ffa0a0"}
+          "rustic": "#a0a0a0", "quoin": "#606060", "spandrel": "#303840", "pediment": "#ffa0a0",
+          "clad": "#b0a080", "pipe": "#80c0c0"}
 
 
 def overlay(fid, pred_spec):

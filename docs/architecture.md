@@ -142,6 +142,10 @@ Eaves overhang 0.3-1.0 on houses; on tenements the main cornice is the eave.
 | dormer, chimney | windows read above the eaves of a facade with depth and a pitched roof; `chimneys:[x...]` |
 | rusticated base, quoins | `rustic`, `quoin` |
 | dark band between ribbon windows | `spandrel` |
+| gable end, stepped gable, raised parapet | `top` outline of the facade (with `depth` and a gable roof: ridge running back) |
+| stone base, timber or brick zone on the wall | `clad` (`palette.clad` or the element's `color`) |
+| glazed or patio door, garage door | `door` with `leaf:"glass"` or `leaf:"garage"` |
+| downpipe, gutter | `pipe` |
 | colours of wall, stone trim, frames, shutters, roof | `palette` |
 
 ## 9. Reading rules that follow from the above

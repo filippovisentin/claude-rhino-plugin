@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.join(ROOT, "rhino"))
 from rhinospec import SpecError, validate  # noqa: E402
 
 CLASSES = ("window", "door", "shop", "balcony", "cornice", "molding", "pillar", "sill", "blind", "deco", "rustic", "quoin",
-           "spandrel", "pediment", "arcade")
+           "spandrel", "pediment", "arcade", "clad", "pipe")
 
 
 def rnd_box(r, W, H):
@@ -51,6 +51,10 @@ def facade(r):
             el["shape"] = r.choice(("block", "console", "oval", "panel"))
         if k == "balcony" and r.random() < 0.6:
             el["rail"] = r.choice(("balustrade", "iron", "solid", "glass"))
+        if k == "door" and r.random() < 0.6:
+            el["leaf"] = r.choice(("panel", "glass", "garage"))
+        if r.random() < 0.15:
+            el["color"] = "#%06x" % r.randrange(1 << 24)
         els.append(el)
     f = {"type": "facade", "w": W, "h": H, "t": round(r.uniform(0.15, 0.8), 2), "els": els,
          "at": [round(r.uniform(-50, 50), 2), round(r.uniform(-50, 50), 2), 0], "rot": round(r.uniform(-180, 180), 1),
@@ -64,6 +68,32 @@ def facade(r):
         if f["roof"] in ("hip", "mansard") and r.random() < 0.5:
             f["chimneys"] = [round(r.uniform(0, W), 2) for _ in range(r.randint(1, 4))]
             els.append({"k": "window", "box": [round(r.uniform(0, W - 1), 2), H + 0.2, 0.8, 1.0]})   # a dormer
+    if r.random() < 0.3 and f.get("roof") not in ("hip", "mansard"):
+        # A gable, a stepped gable or a raised parapet above the eaves, with a window in it.
+        kind = r.choice(("gable", "steps", "parapet", "twin"))
+        if kind == "gable":
+            top = [[round(r.uniform(0.2, 0.8) * W, 2), round(H + r.uniform(0.5, 8), 2)]]
+        elif kind == "twin":
+            top = [[round(W * 0.25, 2), round(H + r.uniform(0.5, 5), 2)], [round(W / 2, 2), H],
+                   [round(W * 0.75, 2), round(H + r.uniform(0.5, 5), 2)]]
+        else:
+            n = r.randint(1, 4) if kind == "steps" else 1
+            rise = [round(r.uniform(0.3, 1.5), 2) for _ in range(n)]
+            xs = sorted(round(r.uniform(0, W), 2) for _ in range(2 * n))
+            top, v = [], H
+            for i in range(n):
+                v += rise[i]
+                top += [[xs[i], round(v - rise[i], 2)], [xs[i], round(v, 2)]]
+            for i in range(n - 1, -1, -1):
+                top += [[xs[2 * n - 1 - i], round(v, 2)], [xs[2 * n - 1 - i], round(v - rise[i], 2)]]
+                v -= rise[i]
+        f["top"] = top
+        f.pop("chimneys", None)
+        f["els"] = [e for e in els if e["box"][1] < H]
+        if not f["els"]:
+            f["els"] = [{"k": "window", "box": [1, 1, 1, 1]}]
+        f["els"].append({"k": "window", "box": [round(W * 0.45, 2), round(H + 0.1, 2), round(W * 0.1, 2), 0.4],
+                         "shape": r.choice(("rect", "arch", "round"))})
     return f
 
 

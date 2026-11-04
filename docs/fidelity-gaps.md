@@ -82,6 +82,37 @@ round piers and glass doors.
 - Detector classes for porticoes, pediments, modern balconies, spandrels and oculi (13), finials (14),
   shadowed checking renders (15).
 
+## Second round: five more photos
+
+| photo | type |
+|---|---|
+| cfp second_26 | three-storey house with a stepped gable (four steps a side), arched windows in the gable and on the upper floor, stone plinth, garage door |
+| cfp second_131 | two-storey brick commercial block: parapet raised in the middle, tall sashes and a central round-headed window, dark storefronts under a sign band |
+| cfp second_32 | modern white block: dark-framed windows in pairs, small cantilevered balconies with glass parapets staggered floor by floor, downpipes, canopy over the shops |
+| cfp second_91 | row of two-storey townhouses: side-gable roof, black shutters, sliding patio doors, brick end units with their gable to the street |
+| cfp second_5 | condo in two volumes: brick on a stone base and a taller stone body with a round-headed window and a recessed entrance |
+
+| # | gap | seen in | cause | fix |
+|---|---|---|---|---|
+| 16 | the wall stops at the eaves: no gable end, stepped gable or raised parapet, and windows in a gable were cut in half with no note | 26, 131, 91 | builder | `top` outline on facades: the wall above the eaves with its openings cut through and a coping; with depth and a gable roof the ridge runs back under the steps |
+| 17 | elements cut short by the outline were not reported (only those wholly outside were) | 26, and earlier b0121, cfp_0196 | builder | `notes` also counts elements cut off by more than 5 cm |
+| 18 | one colour per family: a stone plinth under brick, dark shop fronts under white sashes, a yellow garage door could not be told apart | 5, 131, 26 | builder | `color` on any element (glass keeps its own), `k:"clad"` material zones with the openings cut through, `palette.clad` |
+| 19 | every door was panelled wood: patio doors, glazed entrance doors and garage doors were wrong | 91, 5, 26 | builder | `leaf: panel, glass, garage` on doors |
+| 20 | downpipes missing | 32, 91 | builder | `k:"pipe"`: a downpipe on brackets (a gutter when wider than tall) |
+| 21 | glass balcony parapets took the dark window glass colour | 32 | builder | they take the `railings` colour |
+| 22 | reading slips: a round-headed window read as rectangular, a brick end unit left out | 5, 91 | reading | the inventory catches them; the skill now names the outline, zones, door leaves and pipes |
+
+Re-run: second_26 has its stepped gable with the three arched windows, the stone plinth and a sectional
+garage door; second_131 its raised parapet and dark storefronts; second_91 glazed patio doors, downpipes
+and a brick end unit with its gable; second_5 the stone base, the arched top window and glass doors in
+the recessed entrance; second_32 its downpipes and clear glass parapets. 60 random specs using the new
+keys built in Rhino with no failure; a cladding zone wholly inside an opening is now skipped instead of
+leaving a build warning.
+
+Still open from this round: the podium deck and fence in front of second_32 (site elements), the
+townhouses' roof vents and plumbing stacks (too small to matter), brick and stone texture (colour only),
+lettering on signs.
+
 ## Already fixed during the trials
 
 - Shutter louvres were one part per slat (2162 parts for b0121, over the limit): one profile now.

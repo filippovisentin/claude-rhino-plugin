@@ -40,6 +40,8 @@ CATEGORIES = {
     "spandrels": ("Spandrels", "Pannelli marcapiano", "#3b4048"),
     "pediments": ("Pediments", "Timpani", "#d6cdbb"),
     "arcades": ("Arcades", "Portici", "#e1dacb"),
+    "cladding": ("Cladding", "Rivestimenti", "#8f8a82"),
+    "downpipes": ("Downpipes", "Pluviali", "#8c8f93"),
     "roof/dormers": ("Dormers", "Abbaini", "#8a4b3a"),
     "roof/dormers/glass": ("Glass", "Vetri", "#8fb3cf"),
     "roof/chimneys": ("Chimneys", "Comignoli", "#9a7a66"),
@@ -58,6 +60,7 @@ ELEMENT_CATEGORY = {
     "molding": "mouldings", "sill": "sills", "pillar": "pillars", "balcony": "balconies",
     "blind": "shutters", "deco": "ornaments", "rustic": "rustication", "quoin": "quoins",
     "spandrel": "spandrels", "pediment": "pediments", "arcade": "arcades",
+    "clad": "cladding", "pipe": "downpipes",
 }
 
 
