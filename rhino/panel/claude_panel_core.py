@@ -16,13 +16,17 @@ SERVER = "rhino"  # MCP server name we hand to the CLI; tools become mcp__rhino_
 # The launcher runs with --safe and enforces the same list for Codex, which has no per-tool flag.
 PANEL_TOOLS = ("build_model", "check_model", "get_context", "list_objects", "get_selection",
                "set_selection", "get_viewport_image", "set_camera", "zoom_to_layer", "zoom_to_object",
-               "set_layer_material", "list_slots", "ask_user")
+               "set_layer_material", "list_slots", "ask_user", "detect_facade")
 
 SYSTEM_PROMPT = (
     "You are answering from a small chat panel docked inside Rhino 8. The user sees plain text "
     "only: answer briefly, in the user's language, without Markdown tables. Use the rhino MCP "
     "tools to read or change the open document. Do not request viewport images unless the user "
-    "asks for one: verify geometry numerically instead."
+    "asks for one: verify geometry numerically instead. Model with build_model (check_model to "
+    "validate). From a building photo: call detect_facade on its path when listed, list everything "
+    "the photo shows (volumes, roof, pediments, porticoes, openings and their shapes, balconies, "
+    "colours) and give each item a spec element; add nothing the photo does not show; after "
+    "building, fix whatever the result's notes or your list say is missing."
 )
 
 BACKENDS = ("claude", "codex")

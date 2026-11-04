@@ -5,6 +5,7 @@ import { spawn } from "node:child_process";
 import { findRouter, packagesRoots } from "./find-router.mjs";
 import { transformLine } from "./unwrap.mjs";
 import { createSpecBridge } from "./spec-tool.mjs";
+import { findDetector } from "./facade-detector.mjs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -47,14 +48,16 @@ child.stdin.on("error", () => {}); // router gone: its close handler reports it
 
 // build_model / check_model: the bridge rewrites our tool calls into run_python and trims the
 // replies. Raw mode leaves both directions untouched.
-const bridge = raw ? null : createSpecBridge(join(dirname(dirname(fileURLToPath(import.meta.url))), "rhino"), { safe });
+const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
+const bridge = raw ? null : createSpecBridge(join(repoRoot, "rhino"), { safe, detector: findDetector(repoRoot) });
 if (raw) {
   process.stdin.pipe(child.stdin);
 } else {
   let inBuf = "";
   const fromClient = (line) => {
-    const { toRouter, toClient } = bridge.fromClient(line.replace(/\r$/, ""));
-    if (toClient) process.stdout.write(toClient + "\n");
+    const { toRouter, toClient, local } = bridge.fromClient(line.replace(/\r$/, ""));
+    if (local) local.then((reply) => process.stdout.write(reply + "\n"));
+    else if (toClient) process.stdout.write(toClient + "\n");
     else if (toRouter === undefined) return; // dropped in safe mode
     else child.stdin.write(toRouter === line.replace(/\r$/, "") ? line + "\n" : toRouter + "\n");
   };

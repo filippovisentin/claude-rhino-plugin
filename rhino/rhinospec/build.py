@@ -13,12 +13,15 @@ import Rhino
 import Rhino.Geometry as rg
 
 from .naming import layer_color, layer_path
-from .plan import opening_outline
+from .plan import OPENING_SHAPES, opening_outline
 import System
 from System.Collections.Generic import List
 
 ROOT_LAYER = "rhinospec"
 UNIT_SYSTEMS = {"mm": Rhino.UnitSystem.Millimeters, "cm": Rhino.UnitSystem.Centimeters, "m": Rhino.UnitSystem.Meters}
+
+
+MAX_UNION = 40   # larger groups (dentil rows, rusticated bases) are appended, not unioned
 
 
 def _doc(doc=None):
@@ -114,7 +117,7 @@ def _local_brep(p, tol):
         xz = lambda q: rg.Point3d(q[0], 0, q[1])
         loops = [_closed_polyline([[0, 0], [w, 0], [w, h], [0, h]], xz)]
         for hole in p["holes"]:
-            shape = ("rect", "arch", "seg")[hole[4]] if len(hole) == 5 else "rect"
+            shape = OPENING_SHAPES[hole[4]] if len(hole) == 5 else "rect"
             loops.append(_closed_polyline(opening_outline(hole[0], hole[1], hole[2], hole[3], shape), xz))
         faces = rg.Brep.CreatePlanarBreps(_net(rg.Curve, loops), tol)
         if not faces or len(faces) != 1:
@@ -192,6 +195,21 @@ def _color(hexstr):
     return System.Drawing.Color.FromArgb(int(hexstr[1:3], 16), int(hexstr[3:5], 16), int(hexstr[5:7], 16))
 
 
+def _join(breps, tol):
+    """Pieces of one element as one object: a boolean union when it succeeds (clean solid, no
+    inner faces), otherwise every piece appended into a single multi-shell brep."""
+    if len(breps) == 1:
+        return breps
+    if len(breps) <= MAX_UNION:
+        u = rg.Brep.CreateBooleanUnion(_net(rg.Brep, breps), tol)
+        if u and len(u) == 1 and u[0].IsValid:
+            return [u[0]]
+    one = rg.Brep()
+    for b in breps:
+        one.Append(b)
+    return [one] if one.IsValid else breps
+
+
 def build(spec, doc=None, redraw=True):
     """Builds a spec already normalised by spec.validate. Returns a small summary dict.
 
@@ -220,6 +238,8 @@ def build(spec, doc=None, redraw=True):
 
         bbox = rg.BoundingBox.Empty
         ids = []
+        joined = {}   # (join, layer, colour) -> [attrs, breps]: one solid per element and layer
+        order = []
         for i, p in enumerate(spec["parts"]):
             label = p.get("name") or "parts[%d] %s" % (i, p["type"])
             brep = _placed(p, scale, tol)
@@ -248,6 +268,14 @@ def build(spec, doc=None, redraw=True):
             if p.get("color"):
                 attrs.ColorSource = Rhino.DocObjects.ObjectColorSource.ColorFromObject
                 attrs.ObjectColor = _color(p["color"])
+            if p.get("join"):
+                key = (p["join"], li, p.get("color"))
+                if key not in joined:
+                    attrs.Name = p["join"]
+                    joined[key] = [attrs, []]
+                    order.append(key)
+                joined[key][1].extend(pieces)
+                continue
             for piece in pieces:
                 oid = doc.Objects.AddBrep(piece, attrs)
                 if oid == System.Guid.Empty:
@@ -255,6 +283,16 @@ def build(spec, doc=None, redraw=True):
                     continue
                 ids.append(oid)
                 # BoundingBox is a .NET struct: an instance Union() would update a copy.
+                bbox = rg.BoundingBox.Union(bbox, piece.GetBoundingBox(True))
+
+        for key in order:
+            attrs, breps = joined[key]
+            for piece in _join(breps, tol):
+                oid = doc.Objects.AddBrep(piece, attrs)
+                if oid == System.Guid.Empty:
+                    warnings.append("%s: could not be added" % key[0])
+                    continue
+                ids.append(oid)
                 bbox = rg.BoundingBox.Union(bbox, piece.GetBoundingBox(True))
 
         # Redrawing makes Rhino mesh everything and print "Creating meshes...": skip it in batches.

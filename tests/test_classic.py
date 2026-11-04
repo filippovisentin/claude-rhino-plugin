@@ -20,14 +20,17 @@ def named(ps, word):
 
 
 class Classic(unittest.TestCase):
-    def test_window_surround_shrinks_the_hole(self):
+    def test_window_surround_goes_around_the_read_opening(self):
         ps = parts([{"k": "window", "box": [1, 5, 1.4, 2.6], "shape": "arch"}])
         wall = ps[0]
         self.assertEqual(len(wall["holes"]), 1)
         u, v, w, h = wall["holes"][0][:4]
-        self.assertAlmostEqual(u, 1.15)
-        self.assertAlmostEqual(w, 1.1)
-        self.assertAlmostEqual(h, 2.3)
+        self.assertAlmostEqual(u, 1.0)       # the hole is the box read off the photo
+        self.assertAlmostEqual(w, 1.4)
+        self.assertAlmostEqual(h, 2.6)
+        sb = [bbox(p) for p in named(ps, "surround")]
+        self.assertAlmostEqual(min(b[0] for b in sb), 0.85)   # band outside the opening
+        self.assertAlmostEqual(max(b[3] for b in sb), 2.55)
         # two jambs, the sill band and twelve archivolt segments following the arch
         self.assertEqual(len(named(ps, "surround")), 15)
         self.assertEqual(len([p for p in named(ps, "surround") if p["type"] == "prism"]), 12)
@@ -58,12 +61,20 @@ class Classic(unittest.TestCase):
         self.assertEqual(len(named(ps, "tympanum")), 1)
         tymp = bbox(named(ps, "tympanum")[0])
         self.assertAlmostEqual(tymp[1], -0.105)              # set back behind the raking cornices
-        self.assertGreater(len(named(ps, "slat")), 15)
+        slats = named(ps, "slats")
+        self.assertEqual(len(slats), 1)                      # all louvres in one profile
+        self.assertEqual(slats[0]["type"], "prism")
+        self.assertGreater(len(slats[0]["pts"]), 30)         # a tooth every 10 cm on 2 m
         sign = [p for p in ps if p.get("cat") == "shopfronts/signs"]
         self.assertEqual(len(sign), 1)
         self.assertAlmostEqual(bbox(sign[0])[5], 3.2)
         cut_top = max(bbox(c)[5] for c in ps[0]["cut"])     # shop on the ground line: cut, not hole
         self.assertLess(cut_top, 3.2 - 0.5)                  # the sign is wall, not opening
+
+    def test_surround_narrows_at_the_facade_edge(self):
+        ps = parts([{"k": "window", "box": [0.05, 5, 1.2, 2.0]}])
+        self.assertAlmostEqual(ps[0]["holes"][0][0], 0.05)
+        self.assertGreaterEqual(min(bbox(p)[0] for p in named(ps, "surround")), -1e-9)
 
     def test_tall_sill_and_crown_split_into_parts(self):
         for style in ("plain", "classic"):
@@ -178,7 +189,7 @@ class Classic(unittest.TestCase):
     def test_rejects(self):
         for el, where in (({"k": "sill", "box": [1, 1, 1, 0.1], "sur": 0.1}, ".sur"),
                           ({"k": "window", "box": [1, 1, 1, 1], "rail": "iron"}, ".rail"),
-                          ({"k": "balcony", "box": [1, 1, 1, 1], "rail": "glass"}, ".rail")):
+                          ({"k": "balcony", "box": [1, 1, 1, 1], "rail": "rope"}, ".rail")):
             with self.assertRaises(SpecError) as cm:
                 parts([el])
             self.assertIn(where, str(cm.exception))

@@ -129,13 +129,16 @@ COLORS = {
     "wall": "#e8e2d6", "frame": "#f4f4f2", "glass": "#8fb3cf", "door": "#6b4a2f", "shop": "#8fb3cf",
     "cornice": "#d6cdbb", "molding": "#ddd5c4", "pillar": "#dcd3c1", "sill": "#cfc6b4",
     "blind": "#3e3e3e", "deco": "#cbbfa6", "balcony": "#d6cdbb", "rustic": "#d9cfbd", "quoin": "#d3c9b5",
+    "spandrel": "#3b4048", "pediment": "#d6cdbb", "arcade": "#e1dacb",
 }
 # Default depth per class: recess for openings, projection for everything else.
 DEPTH = {"window": 0.12, "door": 0.15, "shop": 0.10, "cornice": 0.30, "molding": 0.06,
-         "pillar": 0.12, "sill": 0.06, "blind": 0.04, "deco": 0.04, "balcony": 1.0, "rustic": 0.03, "quoin": 0.04}
+         "pillar": 0.12, "sill": 0.06, "blind": 0.04, "deco": 0.04, "balcony": 1.0, "rustic": 0.03, "quoin": 0.04,
+         "spandrel": 0.03, "pediment": 0.5, "arcade": 3.0}
 
 
-OPENING_SHAPES = ("rect", "arch", "seg")
+OPENING_SHAPES = ("rect", "arch", "seg", "round")
+ROUND_SEGMENTS = 24
 HOOD_SHAPES = ("flat", "tri", "seg")
 ARC_SEGMENTS = 12
 
@@ -151,7 +154,11 @@ def arc_rise(shape, w, h):
 
 def opening_outline(u, v, w, h, shape="rect"):
     """Closed outline [[u, v], ...] (counter-clockwise, not repeated) of an opening in the facade
-    plane. Curved tops are polylines; the bounding box is exactly [u, v, w, h]."""
+    plane. Curved tops are polylines; the bounding box is exactly [u, v, w, h]. round: the ellipse
+    inscribed in the box (a circle when it is square), starting at the bottom."""
+    if shape == "round":
+        return [[u + w / 2.0 + w / 2.0 * math.sin(2 * math.pi * i / ROUND_SEGMENTS),
+                 v + h / 2.0 - h / 2.0 * math.cos(2 * math.pi * i / ROUND_SEGMENTS)] for i in range(ROUND_SEGMENTS)]
     rise = arc_rise(shape, w, h)
     if rise <= 0:
         return [[u, v], [u + w, v], [u + w, v + h], [u, v + h]]
@@ -172,21 +179,49 @@ def opening_outline(u, v, w, h, shape="rect"):
     return pts
 
 
-def facade_elements(f):
-    """Expands grids and clips every element to the facade. Returns [(k, [u, v, w, h], el)]."""
-    out = []
+def _expanded(f):
     for el in f["els"]:
         u0, v0, w, h = el["box"]
         nx, ny, du, dv = el["grid"]
         offsets = el.get("offs") or [[i * du, j * dv] for j in range(ny) for i in range(nx)]
-        min_el = MIN_EL * f.get("per_m", 1.0)
         for ou, ov in offsets:
-            u, v = u0 + ou, v0 + ov
-            cu0, cv0 = max(u, 0.0), max(v, 0.0)
-            cu1, cv1 = min(u + w, f["w"]), min(v + h, f["h"])
-            if cu1 - cu0 >= min_el and cv1 - cv0 >= min_el:
-                out.append((el["k"], [cu0, cv0, cu1 - cu0, cv1 - cv0], el))
+            yield el, u0 + ou, v0 + ov, w, h
+
+
+def pediment_boxes(f):
+    """[u, v, w, h] of every pediment: they rise above the eaves, so they are not clipped there."""
+    return [[u, v, w, h] for el, u, v, w, h in _expanded(f) if el["k"] == "pediment"]
+
+
+def in_pediment(r, peds, tol=1e-6):
+    """The pediment box holding r (an oculus, a relief in the tympanum), or None."""
+    u, v, w, h = r
+    for pu, pv, pw, ph in peds:
+        if u >= pu - tol and u + w <= pu + pw + tol and v >= pv - tol and v + h <= pv + ph + tol:
+            return [pu, pv, pw, ph]
+    return None
+
+
+def facade_elements(f):
+    """Expands grids and clips every element to the facade (pediments, and what sits inside
+    them, may rise above it). Returns [(k, [u, v, w, h], el)]."""
+    out = []
+    peds = pediment_boxes(f)
+    min_el = MIN_EL * f.get("per_m", 1.0)
+    for el, u, v, w, h in _expanded(f):
+        top = f["h"]
+        if el["k"] == "pediment" or in_pediment([u, v, w, h], peds):
+            top = max(top, v + h)
+        cu0, cv0 = max(u, 0.0), max(v, 0.0)
+        cu1, cv1 = min(u + w, f["w"]), min(v + h, top)
+        if cu1 - cu0 >= min_el and cv1 - cv0 >= min_el:
+            out.append((el["k"], [cu0, cv0, cu1 - cu0, cv1 - cv0], el))
     return out
+
+
+def dropped_elements(f):
+    """How many element boxes fall wholly outside the facade (and so are not built)."""
+    return sum(1 for _ in _expanded(f)) - len(facade_elements(f))
 
 
 def _merge_rects(rects):
@@ -230,17 +265,36 @@ def _profile(kind, v, h, depth):
     return [[fd * depth, v + fv * h] for fd, fv in PROFILES[kind]]
 
 
+def _ring(flat, label, outer, inner, d0, depth, color):
+    """A band between two closed outlines with the same number of points, as quads."""
+    n = len(outer)
+    return [flat(label, [outer[a], outer[(a + 1) % n], inner[(a + 1) % n], inner[a]], d0, depth, color)
+            for a in range(n)]
+
+
 def _surround(box, flat, tag, u, v, w, h, sur, k, shape, m):
     """Moulded band around an opening, proud of the wall. On arches the band follows the curve
-    (an archivolt, built from short segments) and carries a keystone at the crown."""
+    (an archivolt, built from short segments) and carries a keystone at the crown; round openings
+    get a ring with a keystone."""
     proj = min(0.06 * m, sur / 2.0)
+    if shape == "round":
+        out = _ring(flat, tag + " surround", opening_outline(u, v, w, h, "round"),
+                    opening_outline(u + sur, v + sur, w - 2 * sur, h - 2 * sur, "round"), -proj, proj, COLORS["sill"])
+        kw = min(0.25 * m, w / 4.0)
+        out.append(box(tag + " keystone", u + (w - kw) / 2.0, -proj * 1.6, v + h - sur * 1.6, kw, proj * 1.6,
+                       sur * 1.6, COLORS["sill"]))
+        return out
     rise = arc_rise(shape, w, h) if shape in ("arch", "seg") else 0.0
+    # The opening inside the band: doors have no band under them.
+    ib = [u + sur, v, w - 2 * sur, h - sur] if k == "door" else [u + sur, v + sur, w - 2 * sur, h - 2 * sur]
+    if rise and (ib[2] <= 0 or ib[3] <= 0 or arc_rise(shape, ib[2], ib[3]) <= 0 or ib[3] <= arc_rise(shape, ib[2], ib[3])):
+        rise = 0.0   # an opening too small for a curved band: straight jambs and head
     jamb_h = h - rise if rise else h
     out = [box(tag + " surround", u, -proj, v, sur, proj, jamb_h, COLORS["sill"]),
            box(tag + " surround", u + w - sur, -proj, v, sur, proj, jamb_h, COLORS["sill"])]
     if rise:
         outer = opening_outline(u, v, w, h, shape)[2:]                       # right spring -> left spring
-        inner = opening_outline(u + sur, v + sur, w - 2 * sur, h - 2 * sur, shape)[2:]
+        inner = opening_outline(ib[0], ib[1], ib[2], ib[3], shape)[2:]
         for a in range(len(outer) - 1):
             quad = [outer[a], outer[a + 1], inner[a + 1], inner[a]]
             out.append(flat(tag + " surround", quad, -proj, proj, COLORS["sill"]))
@@ -256,7 +310,8 @@ def _surround(box, flat, tag, u, v, w, h, sur, k, shape, m):
 
 
 def _balcony(box, along, tag, u, v, w, h, depth, rail, classic, m):
-    """Slab, consoles underneath (classic) and a railing: balustrade, iron bars or solid parapet."""
+    """Slab, consoles underneath (classic) and a railing: balustrade, iron bars, solid parapet, or
+    glass panes between slim metal posts."""
     slab_t = min(0.15 * m, h)
     out = [box(tag + " slab", u, -depth, v, w, depth, slab_t, COLORS["balcony"])]
     if classic:
@@ -276,18 +331,39 @@ def _balcony(box, along, tag, u, v, w, h, depth, rail, classic, m):
         for side_u in (u, u + w - t):
             out.append(box(tag + " parapet", side_u, -depth + t, z, t, depth - t, rail_h, COLORS["balcony"]))
         return out
-    top_h = min(0.12 * m, rail_h / 4.0)
+    runs = [(u, -depth, w, t), (u, -depth + t, t, depth - t), (u + w - t, -depth + t, t, depth - t)]
+    if rail == "glass":
+        # Panes set 4 cm above the slab, posts about every 1.2 m and a handrail, all metal.
+        top_h, gap, pw = min(0.05 * m, rail_h / 5.0), min(0.04 * m, rail_h / 6.0), min(0.04 * m, t)
+        for ru, rd, rw, rdep in runs:
+            length = max(rw, rdep)
+            along_u = rw >= rdep
+            out.append(box(tag + " handrail iron", ru, rd, z + rail_h - top_h, rw, rdep, top_h, COLORS["blind"]))
+            n = max(1, int(round(length / (1.2 * m))))
+            for i in range(n + 1):
+                off = min(max(0.0, length * i / float(n) - pw / 2.0), length - pw)
+                pu, pd = (ru + off, rd) if along_u else (ru, rd + off)
+                out.append(box(tag + " post iron", pu, pd, z, pw if along_u else rw, rdep if along_u else pw,
+                               rail_h - top_h, COLORS["blind"]))
+            pane_t = min(0.02 * m, min(rw, rdep) / 2.0)
+            if along_u:
+                out.append(box(tag + " pane glass", ru, rd + (rdep - pane_t) / 2.0, z + gap, rw, pane_t,
+                               rail_h - top_h - gap, COLORS["glass"]))
+            else:
+                out.append(box(tag + " pane glass", ru + (rw - pane_t) / 2.0, rd, z + gap, pane_t, rdep,
+                               rail_h - top_h - gap, COLORS["glass"]))
+        return out
+    top_h = min((0.12 if rail == "balustrade" else 0.04) * m, rail_h / 4.0)
     iron = " iron" if rail == "iron" else ""
     plinth_h = min(0.15 * m, rail_h / 5.0) if rail == "balustrade" else 0.0
     # Front run along u, then the two sides back to the wall: plinth, handrail, posts between.
-    runs = [(u, -depth, w, t), (u, -depth + t, t, depth - t), (u + w - t, -depth + t, t, depth - t)]
     for ru, rd, rw, rdep in runs:
         if plinth_h:
             out.append(box(tag + " plinth", ru, rd, z, rw, rdep, plinth_h, COLORS["balcony"]))
         out.append(box(tag + " handrail" + iron, ru, rd, z + rail_h - top_h, rw, rdep, top_h, COLORS["balcony"]))
     post_h = rail_h - top_h - plinth_h
     step = (0.25 if rail == "balustrade" else 0.12) * m
-    pw = (0.11 if rail == "balustrade" else 0.02) * m
+    pw = (0.11 if rail == "balustrade" else 0.016) * m
     for ru, rd, rw, rdep in runs:
         length = max(rw, rdep)
         count = max(1, int(length // step))
@@ -330,19 +406,26 @@ def _door(box, flat, tag, u, v, w, h, r, shape, m):
     return out
 
 
-def _shutter(box, tag, u, v, w, h, depth, m):
-    """Louvred shutter: stiles, top and bottom rails, slats every 10 cm between them."""
+def _shutter(box, along, tag, u, v, w, h, depth, m):
+    """Louvred shutter: stiles, top and bottom rails, and the louvres between them as one sawtooth
+    profile (a slat every 10 cm, tilted out at the bottom). One prism instead of a part per slat
+    keeps a palazzo with 80 shutters far below the part limit."""
     st = min(0.05 * m, w / 6.0)
     rail = min(0.06 * m, h / 10.0)
     out = [box(tag, u, -depth, v, st, depth, h, COLORS["blind"]),
            box(tag, u + w - st, -depth, v, st, depth, h, COLORS["blind"]),
            box(tag, u + st, -depth, v, w - 2 * st, depth, rail, COLORS["blind"]),
            box(tag, u + st, -depth, v + h - rail, w - 2 * st, depth, rail, COLORS["blind"])]
-    span = h - 2 * rail
-    n = max(1, min(30, int(span // (0.10 * m))))
-    for i in range(n):
-        out.append(box(tag + " slat", u + st, -depth * 0.8, v + rail + span * (i + 0.5) / n - 0.02 * m,
-                       w - 2 * st, depth * 0.6, 0.04 * m, COLORS["blind"]))
+    v0, v1 = v + rail, v + h - rail
+    n = max(1, min(30, int((v1 - v0) // (0.10 * m))))
+    pitch = (v1 - v0) / n
+    back, mid, front = -0.2 * depth, -0.5 * depth, -0.8 * depth
+    pts = [[back, v1], [mid, v1]]
+    for i in range(n):   # down the front: each slat leans out to its lower edge
+        top = v1 - i * pitch
+        pts += [[front, top - 0.8 * pitch], [mid, top - pitch]]
+    pts.append([back, v0])
+    out.append(along(tag + " slats", u + st, w - 2 * st, pts, COLORS["blind"]))
     return out
 
 
@@ -406,21 +489,30 @@ def plan_facade(f):
     m = f.get("per_m", 1.0)          # spec units per metre: detail sizes are real-world metres
     FRAME_, GLASS_, BAR_, MIN_ = FRAME * m, GLASS_T * m, BAR_W * m, MIN_EL * m
     classic = f.get("style", "plain") == "classic"
+    modern = f.get("style") == "modern"
+    if modern:   # slim aluminium profiles
+        FRAME_, BAR_ = 0.04 * m, 0.025 * m
     els = []
     for k, r, el in facade_elements(f):
-        # A window or door box includes its surround (the moulded band around the opening): the
-        # hole, frame and glass sit inside it. Doors keep their foot on the ground line.
+        # The read box is the opening (glass and frame, as photos are annotated); the moulded
+        # surround goes around it, narrowed where the facade edge leaves less room. Doors keep
+        # their foot on the ground line. (Carving the surround inside the box made classic
+        # windows about half the size they are in the photo.)
         sur = el.get("sur", SURROUND * m if classic and k in ("window", "door") else 0.0)
         u, v, w, h = r
-        if sur > 0 and w - 2 * sur > MIN_ and h - 2 * sur > MIN_:
-            inner = [u + sur, v if k == "door" else v + sur, w - 2 * sur, h - sur if k == "door" else h - 2 * sur]
+        if sur > 0:
+            room = [u, W - u - w, H - v - h] + ([] if k == "door" else [v])
+            sur = min([sur] + room)
+        if sur > MIN_:
+            inner = r
+            r = [u - sur, v if k == "door" else v - sur, w + 2 * sur, h + sur if k == "door" else h + 2 * sur]
         else:
             sur, inner = 0.0, r
         if k == "shop" and inner[3] >= 2.4 * m:
             fh = min(0.6 * m, 0.2 * inner[3])
             inner = inner[:3] + [inner[3] - fh]
         els.append((k, r, el, sur, inner))
-    raw = [(inner, el.get("shape", "rect")) for k, r, el, sur, inner in els if k in ("window", "door", "shop")]
+    raw = [(inner, el.get("shape", "rect")) for k, r, el, sur, inner in els if k in ("window", "door", "shop", "arcade")]
     key = lambda r: tuple(round(x, 9) for x in r)
     shape_of = dict((key(r), sh) for r, sh in raw)
     # Merged openings keep their shape only when nothing was merged into them.
@@ -428,7 +520,7 @@ def plan_facade(f):
     eps = 1e-3 * m
     inside = lambda r: r[0] > eps and r[1] > eps and r[0] + r[2] < W - eps and r[1] + r[3] < H - eps
     holes = [r + [OPENING_SHAPES.index(sh)] if sh != "rect" else r for r, sh in openings if inside(r)]
-    edge = [(r, sh) for r, sh in openings if not inside(r)]
+    edge = [(r, sh) for r, sh in openings if not inside(r) and r[1] < H - eps]   # none above the eaves
 
     wall = {"type": "panel", "name": _named(name, "wall"), "at": place(0, 0, 0), "rot": rot,
             "size": [W, H], "t": T, "holes": holes, "color": wall_color}
@@ -453,9 +545,11 @@ def plan_facade(f):
                 "len": depth, "pts": pts, "color": color}
 
     opening_boxes = [r for k, r, el, sur, inner in els if k in ("window", "door", "shop")]
+    marks = []   # (first part index, tag) per element: its parts are joined into one solid per layer
     for n, (k, (u, v, w, h), el, sur, inner) in enumerate(els):
         tag = "%s %d" % (k, n)
         depth = el.get("d", DEPTH[k] * m)
+        marks.append((len(parts), tag, k, [u, v, w, h], depth))
         shape = el.get("shape")
         if k in ("window", "door", "shop"):
             if sur > 0:
@@ -465,7 +559,17 @@ def plan_facade(f):
                 parts.append(box(tag + " sign", u + sur, -0.08 * m, v + h - sur - fh, w - 2 * sur, 0.08 * m, fh,
                                  COLORS["frame"]))
             u, v, w, h = inner
-        if k in ("window", "door", "shop") and shape in ("arch", "seg"):
+        if k == "window" and shape == "round":
+            # Oculus: a ring frame and round glass, set back in the wall like any window.
+            r = min(depth, T - GLASS_ * 2)
+            fr = min(FRAME_, w / 4.0, h / 4.0)
+            if w - 2 * fr < MIN_ or h - 2 * fr < MIN_:
+                continue
+            ring_in = opening_outline(u + fr, v + fr, w - 2 * fr, h - 2 * fr, "round")
+            parts.extend(_ring(flat, tag + " frame", opening_outline(u, v, w, h, "round"), ring_in, r,
+                               min(0.08 * m, T - r), COLORS["frame"]))
+            parts.append(flat(tag + " glass", ring_in, r + 0.03 * m, GLASS_, COLORS["glass"]))
+        elif k in ("window", "door", "shop") and shape in ("arch", "seg"):
             r = min(depth, T - GLASS_ * 2)
             fr = min(FRAME_, w / 4.0, h / 4.0)
             iu, iv, iw, ih = u + fr, v + fr, w - 2 * fr, h - 2 * fr
@@ -497,12 +601,13 @@ def plan_facade(f):
             iu, iv, iw, ih = u + fr, v + fr, w - 2 * fr, h - 2 * fr
             if iw < MIN_ or ih < MIN_:
                 continue
-            if k == "door":
+            if k == "door" and not modern:
                 parts.extend(_door(box, flat, tag, iu, iv, iw, ih, r, "rect", m))
                 continue
-            leaf = COLORS["door"] if k == "door" else COLORS["glass"]
-            leaf_t = 0.05 * m if k == "door" else GLASS_
-            parts.append(box(tag + (" leaf" if k == "door" else " glass"), iu, r + 0.03 * m, iv, iw, leaf_t, ih, leaf))
+            glazed = k != "door" or modern   # modern doors are glass in a slim frame
+            leaf = COLORS["glass"] if glazed else COLORS["door"]
+            leaf_t = GLASS_ if glazed else 0.05 * m
+            parts.append(box(tag + (" glass" if glazed else " leaf"), iu, r + 0.03 * m, iv, iw, leaf_t, ih, leaf))
             nb_v, nb_h = el.get("bars", [0, 0])
             for b in range(nb_v):
                 bu = iu + iw * (b + 1) / (nb_v + 1.0) - BAR_ / 2
@@ -513,6 +618,21 @@ def plan_facade(f):
         elif k == "balcony":
             parts.extend(_balcony(box, along, tag, u, v, w, h, depth, el.get("rail", "balustrade" if classic else "iron"),
                                   classic, m))
+        elif k == "arcade":
+            pass   # a hole through the wall; its recess is built per row after the loop
+        elif k == "pediment":
+            # Temple front over a risalit, in any style: raking cornices, a tympanum set back
+            # between them and a moulded base, rising above the eaves where the photo shows it.
+            bt = min(0.35 * m, h / 4.0)
+            dx = bt * w / (2.0 * h)
+            top = [u + w / 2.0, v + h]
+            parts.append(flat(tag, [[u, v], top, [top[0], top[1] - bt], [u + dx, v]], -depth, depth, COLORS[k]))
+            parts.append(flat(tag, [[u + w, v], [u + w - dx, v], [top[0], top[1] - bt], top], -depth, depth, COLORS[k]))
+            parts.append(flat(tag + " tympanum", [[u + dx, v], [u + w - dx, v], [top[0], top[1] - bt]],
+                              -depth * 0.35, depth * 0.35, COLORS[k]))
+            lip = min(0.15 * m, h / 6.0)
+            parts.append(along(tag + " base", u - lip, w + 2 * lip, _profile("string", v - lip, lip * 2, depth + lip),
+                               COLORS[k]))
         elif k == "cornice" and shape == "tri" and classic and h > 0.1 * m:
             # Pediment: two raking cornices over a tympanum set back between them.
             bt = min(0.12 * m, h / 3.0)
@@ -574,6 +694,22 @@ def plan_facade(f):
             parts.append(box(tag + " apron", u + fw, -0.04 * m, v, w - 2 * fw, 0.04 * m, h - slab, COLORS[k]))
         elif k == "sill" and classic and h >= 0.04 * m:
             parts.append(along(tag, u, w, _profile("sill", v, h, depth), COLORS[k]))
+        elif k == "pillar" and shape == "round":
+            # A round shaft (tiled pier, engaged or free column): d is how far it stands out of
+            # the wall, the diameter by default (a free column against the facade).
+            rr = w / 2.0
+            out_d = el.get("d", w)
+            cu, cd = u + rr, -(out_d - rr)
+            def cyl(label, r_, z, hh):
+                return {"type": "cyl", "name": _named(name, label), "at": place(cu, cd, z), "rot": rot,
+                        "r": r_, "h": hh, "color": COLORS[k]}
+            if classic and h >= 1.5 * m:
+                base_h, cap_h = min(0.35 * m, h * 0.08), min(0.4 * m, h * 0.1)
+                parts.append(cyl(tag + " base", rr * 1.18, v, base_h))
+                parts.append(cyl(tag, rr, v + base_h, h - base_h - cap_h))
+                parts.append(cyl(tag + " capital", rr * 1.22, v + h - cap_h, cap_h))
+            else:
+                parts.append(cyl(tag, rr, v, h))
         elif k == "pillar" and classic and h >= 1.5 * m:
             base_h, cap_h, lip = min(0.35 * m, h * 0.1), min(0.45 * m, h * 0.12), min(0.06 * m, w / 4.0)
             parts.append(box(tag + " base", u - lip, -depth - lip, v, w + 2 * lip, depth + lip, base_h, COLORS[k]))
@@ -581,7 +717,7 @@ def plan_facade(f):
             parts.append(along(tag + " capital", u - lip, w + 2 * lip, _profile("string", v + h - cap_h, cap_h, depth + lip),
                                COLORS[k]))
         elif k == "blind" and h > 0.6 * m and w > 0.25 * m:
-            parts.extend(_shutter(box, tag, u, v, w, h, depth, m))
+            parts.extend(_shutter(box, along, tag, u, v, w, h, depth, m))
         elif k == "rustic":
             parts.extend(_rustication(box, tag, u, v, w, h, depth, opening_boxes, m))
         elif k == "quoin":
@@ -606,9 +742,126 @@ def plan_facade(f):
         else:
             parts.append(box(tag, u, -depth, v, w, depth, h, COLORS[k]))
 
+    ends = [mk[0] for mk in marks[1:]] + [len(parts)]
+    peds = pediment_boxes(f)
+    ped_d = max([el.get("d", DEPTH["pediment"] * m) for k, r, el, sur, inner in els if k == "pediment"] or [0.0])
+    arcades = [(r, el.get("d", DEPTH["arcade"] * m), el.get("shape", "rect")) for k, r, el, sur, inner in els
+               if k == "arcade"]
+    inside_arcade = {}
+    for (start, tag, k, r, depth), end in zip(marks, ends):
+        # An oculus or a relief inside a pediment stands on its tympanum, in front of the wall line
+        # (openings are otherwise set back in the wall by their reveal depth); a door or window
+        # inside an arcade stands on the arcade's back wall.
+        lift = k != "pediment" and r[1] + r[3] > H + MIN_ and in_pediment(r, peds)
+        dist = 0.35 * ped_d + 0.01 * m + (depth if k in ("window", "door", "shop") else 0.0)
+        back = None
+        if k != "arcade":
+            back = next((a for a in arcades if in_pediment(r, [a[0]])), None)
+            if back is not None:
+                inside_arcade.setdefault(id(back), []).append((r, k))
+        for p in parts[start:end]:
+            p["join"] = _named(name, tag)
+            if lift:
+                _shift(p, place(0, -dist, 0), place(0, 0, 0))
+            elif back is not None:
+                _shift(p, place(0, back[1], 0), place(0, 0, 0))
+    parts.extend(_arcade_recesses(arcades, inside_arcade, place, box, name, T, rot, wall_color, m))
     if f.get("depth", 0.0) > 2 * T:
         parts.extend(_volume(f, place, box, name, wall_color, m))
-    return _categorize(parts, name, f.get("color"))
+    parts = _categorize(parts, name, f.get("color"))
+    if f.get("style") == "modern":
+        _modern(parts)
+    if f.get("palette"):
+        apply_palette(parts, f["palette"])
+    return parts
+
+
+TRIM = ("cornices", "mouldings", "sills", "pillars", "ornaments", "rustication", "quoins", "pediments",
+        "balconies", "windows/surrounds", "doors/surrounds")
+
+
+def palette_key(cat):
+    """Which palette colour a category takes, or None."""
+    top, sub = cat.split("/")[0], cat.rsplit("/", 1)[-1]
+    if cat == "balconies/railings" or cat == "stairs/railings":
+        return "railings"
+    if sub in ("frames", "bars") and top in ("windows", "doors", "shopfronts"):
+        return "frames"
+    if sub == "glass":
+        return "glass"
+    if cat in ("doors/leaves",):
+        return "doors"
+    if cat in TRIM:
+        return "trim"
+    return {"walls": "wall", "arcades": "wall", "shutters": "shutters", "spandrels": "spandrels", "roof": "roof",
+            "roof/chimneys": "wall", "roof/dormers": "trim"}.get(cat)
+
+
+def apply_palette(parts, pal):
+    """Photo colours as object colours, by category family."""
+    for p in parts:
+        key = palette_key(p.get("cat", ""))
+        if key in pal:
+            p["color"] = pal[key]
+
+
+def _arcade_recesses(arcades, inside, place, box, name, T, rot, color, m):
+    """Behind each row of arcades (same sill line): a back wall at the arcade depth with holes
+    for the doors and windows read inside the arches, a ceiling at the highest crown and the two
+    side returns. The facade wall itself has the arches cut out."""
+    rows = []
+    for a in sorted(arcades, key=lambda a: (round(a[0][1], 2), a[0][0])):
+        if rows and abs(rows[-1][0][0][1] - a[0][1]) <= 0.05 * m:
+            rows[-1].append(a)
+        else:
+            rows.append([a])
+    out = []
+    for n, row in enumerate(rows):
+        u0 = min(a[0][0] for a in row)
+        u1 = max(a[0][0] + a[0][2] for a in row)
+        v0 = min(a[0][1] for a in row)
+        top = max(a[0][1] + a[0][3] for a in row)
+        d = max(a[1] for a in row)
+        if d <= T + 0.05 * m:
+            continue
+        holes, eps = [], 1e-3 * m
+        for a in row:
+            for (r, k) in inside.get(id(a), []):
+                hu, hv = r[0] - u0, max(r[1] - v0, eps)
+                hw, hh = r[2], min(r[3], top - v0 - eps - hv)
+                if hu > eps and hu + hw < u1 - u0 - eps and hw > eps and hh > eps:
+                    holes.append([hu, hv, hw, hh])
+        # Overlapping holes would break the planar face: merge them, keep those still inside.
+        holes = [hh for hh in _merge_rects(holes)
+                 if hh[0] > eps and hh[1] > 0 and hh[0] + hh[2] < u1 - u0 - eps and hh[1] + hh[3] < top - v0 - eps]
+        tag = "arcade row %d" % n
+        out.append({"type": "panel", "name": _named(name, tag + " back"), "at": place(u0, d, v0), "rot": rot,
+                    "size": [u1 - u0, top - v0], "t": T, "holes": holes, "color": color})
+        slab = min(0.3 * m, (top - v0) / 6.0)
+        out.append(box(tag + " ceiling", u0, T, top - slab, u1 - u0, d - T, slab, color))
+        for su in (max(0.0, u0 - T), u1):
+            out.append(box(tag + " side", su, T, v0, T, d - T, top - v0, color))
+    return out
+
+
+def _shift(p, a, b):
+    """Moves a planned part (and its cutters) by the vector b -> a."""
+    d = [a[i] - b[i] for i in range(3)]
+    for q in [p] + p.get("cut", []):
+        if "at" in q:
+            q["at"] = [q["at"][i] + d[i] for i in range(3)]
+
+
+MODERN = {"frames": "#3a3d42", "bars": "#3a3d42", "glass": "#2f3b46", "leaves": "#3a3d42"}
+
+
+def _modern(parts):
+    """Modern style: slim anthracite profiles and dark glass, as object colours (the shared
+    Frames/Glass layers keep their colours for other buildings in the same file)."""
+    for p in parts:
+        sub = p.get("cat", "").rsplit("/", 1)[-1]
+        if sub in MODERN and p.get("cat", "").split("/")[0] in ("windows", "doors", "shopfronts"):
+            p["color"] = MODERN[sub]
 
 
 SUBPART = {"frame": "frames", "glass": "glass", "bar": "bars", "leaf": "leaves",
@@ -640,6 +893,8 @@ def _categorize(parts, name, user_color):
                     cat += "/" + sub
             elif head == "balcony" and words[-1] in RAILING:
                 cat = "balconies/railings"
+            elif head == "balcony" and words[-1] == "glass":
+                cat = "balconies/glass"
         p["obj"], p["cat"] = name, cat
         if cat == "walls" and user_color:
             p["color"] = user_color
@@ -676,6 +931,8 @@ def plan_block(b):
              "style": b.get("style", "plain")}
         if "color" in b:
             f["color"] = b["color"]
+        if "palette" in b:
+            f["palette"] = b["palette"]
         fparts = plan_facade(f)
         if key in ("right", "left"):
             # Front and back walls run the full width; the side walls give up their corner
@@ -731,12 +988,17 @@ def plan_block(b):
                           "sections": sections, "obj": name, "cat": "roof"})
     parts.extend(_dormers(b, world, name))
     parts.extend(_chimneys(b, world, name))
+    if b.get("palette"):
+        apply_palette(parts, b["palette"])
     return parts
 
 
 def _chimneys(b, world, name):
     """Chimney stacks on the ridge line (on the roof slab for flat roofs), evenly spaced."""
     W, D, m, n = b["w"], b["d"], b["per_m"], b.get("chimneys", 0)
+    at = b.get("chimney_at")
+    if at:
+        n = len(at)
     if not n or b["roof"] == "none":
         return []
     z0 = b["h"] + 0.3 * m
@@ -744,7 +1006,9 @@ def _chimneys(b, world, name):
     s = 0.6 * m
     out = []
     for k in range(n):
-        if W >= D:
+        if at:   # positions along the front read off the photo, on the ridge line
+            x, y = min(max(at[k] - s / 2.0, 0.0), W - s), D / 2.0 - s / 2.0
+        elif W >= D:
             x, y = W * (k + 1) / (n + 1.0) - s / 2.0, D / 2.0 - s / 2.0
         else:
             x, y = W / 2.0 - s / 2.0, D * (k + 1) / (n + 1.0) - s / 2.0
@@ -759,10 +1023,13 @@ def _chimneys(b, world, name):
 def _dormers(b, world, name):
     """Dormers on the two long roof slopes facing front and back (y = 0 and y = d): a box with a
     window and a small gable, standing on the slope a quarter of the way up. Mansards have such
-    slopes on every side; gable and hip roofs only when their ridge runs along w (w >= d)."""
+    slopes on every side; gable and hip roofs only when their ridge runs along w (w >= d).
+    dormer_at [[u, w], ...] (windows read above the eaves of a front photo) places them on the
+    front slope where the photo has them instead of evenly."""
     W, D, m, n = b["w"], b["d"], b["per_m"], b["dormers"]
     roof = b["roof"]
-    if not n or roof not in ("gable", "hip", "mansard") or (roof != "mansard" and W < D):
+    at = b.get("dormer_at")
+    if (not n and not at) or roof not in ("gable", "hip", "mansard") or (roof != "mansard" and W < D):
         return []
     rh, z0 = b["roof_h"], b["h"] + 0.3 * m
     if roof == "mansard":
@@ -773,29 +1040,38 @@ def _dormers(b, world, name):
         run, rise, margin = D / 2.0, rh, (D / 2.0 if roof == "hip" else 0.3 * m)
     if rise < 1.2 * m:
         return []
-    dw = 1.2 * m
-    usable = W - 2 * margin
-    n = min(n, int(usable // (dw * 1.6)))
-    if n < 1:
-        return []
     t0, zb = 0.25 * run, z0 + 0.25 * rise
     dd = max(0.45 * run, 0.6 * m)
     dh = min(1.6 * m, 0.7 * rise)
+    if at:
+        # On a hip roof the front slope is still t0 in from each end at a quarter of its height.
+        lo, hi = (t0 if roof == "hip" else 0.0) + 0.1 * m, W - (t0 if roof == "hip" else 0.0) - 0.1 * m
+        spots = []
+        for u, w in at:
+            dw_ = max(w + 0.4 * m, 0.8 * m)
+            x = min(max(u + w / 2.0 - dw_ / 2.0, lo), hi - dw_)
+            if x >= lo - 1e-9:
+                spots.append((0, x, dw_))
+    else:
+        dw = 1.2 * m
+        usable = W - 2 * margin
+        n = min(n, int(usable // (dw * 1.6)))
+        if n < 1:
+            return []
+        spots = [(side, margin + usable * (k + 0.5) / n - dw / 2.0, dw) for side in (0, 1) for k in range(n)]
     out = []
-    for side in (0, 1):
-        for k in range(n):
-            x = margin + usable * (k + 0.5) / n - dw / 2.0
-            y = t0 if side == 0 else D - t0 - dd
-            tag = "dormer %d" % (side * n + k)
-            out.append({"type": "box", "name": _named(name, "roof " + tag), "rot": b["rot"],
-                        "at": world(x, y, zb), "size": [dw, dd, dh], "obj": name, "cat": "roof/dormers"})
-            out.append({"type": "prism", "name": _named(name, "roof " + tag + " gable"), "rot": b["rot"],
-                        "at": world(x, y, zb + dh), "len": dd,
-                        "pts": [[0, 0], [dw, 0], [dw / 2.0, dw * 0.45]], "obj": name, "cat": "roof/dormers"})
-            gy = y - 0.02 * m if side == 0 else y + dd - 0.01 * m
-            out.append({"type": "box", "name": _named(name, "roof " + tag + " glass"), "rot": b["rot"],
-                        "at": world(x + 0.15 * m, gy, zb + 0.2 * m), "size": [dw - 0.3 * m, 0.03 * m, dh - 0.35 * m],
-                        "obj": name, "cat": "roof/dormers/glass"})
+    for j, (side, x, dw) in enumerate(spots):
+        y = t0 if side == 0 else D - t0 - dd
+        tag = "dormer %d" % j
+        out.append({"type": "box", "name": _named(name, "roof " + tag), "rot": b["rot"],
+                    "at": world(x, y, zb), "size": [dw, dd, dh], "obj": name, "cat": "roof/dormers"})
+        out.append({"type": "prism", "name": _named(name, "roof " + tag + " gable"), "rot": b["rot"],
+                    "at": world(x, y, zb + dh), "len": dd,
+                    "pts": [[0, 0], [dw, 0], [dw / 2.0, dw * 0.45]], "obj": name, "cat": "roof/dormers"})
+        gy = y - 0.02 * m if side == 0 else y + dd - 0.01 * m
+        out.append({"type": "box", "name": _named(name, "roof " + tag + " glass"), "rot": b["rot"],
+                    "at": world(x + 0.15 * m, gy, zb + 0.2 * m), "size": [dw - 0.3 * m, 0.03 * m, dh - 0.35 * m],
+                    "obj": name, "cat": "roof/dormers/glass"})
     return out
 
 

@@ -14,7 +14,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "rhino"))
 from rhinospec import SpecError, validate  # noqa: E402
 
-CLASSES = ("window", "door", "shop", "balcony", "cornice", "molding", "pillar", "sill", "blind", "deco", "rustic", "quoin")
+CLASSES = ("window", "door", "shop", "balcony", "cornice", "molding", "pillar", "sill", "blind", "deco", "rustic", "quoin",
+           "spandrel", "pediment", "arcade")
 
 
 def rnd_box(r, W, H):
@@ -31,28 +32,38 @@ def facade(r):
         el = {"k": k, "box": rnd_box(r, W, H)}
         if r.random() < 0.4:
             el["grid"] = [r.randint(1, 6), r.randint(1, 5), round(r.uniform(0.5, 4), 2), round(r.uniform(0.5, 4), 2)]
-        if k in ("window", "door", "shop"):
+        if k in ("window", "door", "shop", "arcade"):
             if r.random() < 0.5:
-                el["shape"] = r.choice(("rect", "arch", "seg"))
-            if r.random() < 0.5:
+                el["shape"] = r.choice(("rect", "arch", "seg") + (("round",) if k == "window" else ()))
+        if k == "pillar" and r.random() < 0.5:
+            el["shape"] = "round"
+        if k == "pediment":
+            el["box"][1] = round(H - r.uniform(0, 1), 3)      # sits on the eaves, rises above them
+            if r.random() < 0.5 and k != "arcade":
                 el["bars"] = [r.randint(0, 3), r.randint(0, 3)]
         if k == "cornice" and r.random() < 0.6:
             el["shape"] = r.choice(("flat", "tri", "seg"))
         if r.random() < 0.3:
             el["d"] = round(r.uniform(0.01, 1.5), 3)
-        if k in ("window", "door", "shop") and r.random() < 0.2:
+        if k in ("window", "door", "shop") and r.random() < 0.2 and el.get("shape") != "round":
             el["sur"] = round(r.uniform(0, 0.4), 3)
         if k == "deco" and r.random() < 0.6:
             el["shape"] = r.choice(("block", "console", "oval", "panel"))
         if k == "balcony" and r.random() < 0.6:
-            el["rail"] = r.choice(("balustrade", "iron", "solid"))
+            el["rail"] = r.choice(("balustrade", "iron", "solid", "glass"))
         els.append(el)
     f = {"type": "facade", "w": W, "h": H, "t": round(r.uniform(0.15, 0.8), 2), "els": els,
          "at": [round(r.uniform(-50, 50), 2), round(r.uniform(-50, 50), 2), 0], "rot": round(r.uniform(-180, 180), 1),
-         "style": r.choice(("plain", "classic"))}
+         "style": r.choice(("plain", "classic", "modern"))}
+    if r.random() < 0.3:
+        f["palette"] = {"wall": "#%06x" % r.randrange(1 << 24), "trim": "#%06x" % r.randrange(1 << 24),
+                        "glass": "#%06x" % r.randrange(1 << 24)}
     if r.random() < 0.5:
-        f.update(depth=round(r.uniform(2, 30), 2), floors=r.randint(1, 10), roof=r.choice(("flat", "gable", "none")),
-                 roof_h=round(r.uniform(0.5, 6), 2))
+        f.update(depth=round(r.uniform(2, 30), 2), floors=r.randint(1, 10),
+                 roof=r.choice(("flat", "gable", "hip", "mansard", "none")), roof_h=round(r.uniform(0.5, 6), 2))
+        if f["roof"] in ("hip", "mansard") and r.random() < 0.5:
+            f["chimneys"] = [round(r.uniform(0, W), 2) for _ in range(r.randint(1, 4))]
+            els.append({"k": "window", "box": [round(r.uniform(0, W - 1), 2), H + 0.2, 0.8, 1.0]})   # a dormer
     return f
 
 
