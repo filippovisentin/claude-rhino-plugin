@@ -1,11 +1,20 @@
 {
   "name": "rhino",
-  "version": "0.2.1",
+  "version": "0.4.0",
   "repository": "https://github.com/filippovisentin/claude-rhino-plugin",
-  "description": "Connects Claude Code to Rhino 8 through McNeel's Rhino-MCP-Platform router, with a doctor skill for connection problems.",
+  "description": "Connects Claude Code to Rhino 8 through McNeel's Rhino-MCP-Platform router. Models from text, prompts and images through a compact JSON spec, plus a doctor skill for connection problems.",
   "author": {
     "name": "Filippo Antonio Visentin"
   },
   "license": "MIT",
-  "keywords": ["rhino", "rhino3d", "grasshopper", "mcp", "cad"]
+  "keywords": [
+    "rhino",
+    "rhino3d",
+    "grasshopper",
+    "mcp",
+    "cad",
+    "text-to-3d",
+    "image-to-3d",
+    "architecture"
+  ]
 }
