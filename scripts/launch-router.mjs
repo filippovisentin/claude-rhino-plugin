@@ -4,6 +4,9 @@
 import { spawn } from "node:child_process";
 import { findRouter, packagesRoots } from "./find-router.mjs";
 import { transformLine } from "./unwrap.mjs";
+import { createSpecBridge } from "./spec-tool.mjs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const router = findRouter();
 if (!router) {
@@ -18,8 +21,10 @@ if (!router) {
   process.exit(1);
 }
 
-const raw = process.env.RHINO_MCP_RAW === "1";
-const child = spawn(router, process.argv.slice(2), {
+// --safe (the Rhino panel): only the tools in SAFE_TOOLS, never raw passthrough.
+const safe = process.argv.includes("--safe");
+const raw = !safe && process.env.RHINO_MCP_RAW === "1";
+const child = spawn(router, process.argv.slice(2).filter((a) => a !== "--safe"), {
   stdio: ["pipe", raw ? "inherit" : "pipe", "inherit"],
   windowsHide: true,
 });
@@ -38,14 +43,42 @@ for (const sig of ["SIGINT", "SIGTERM"]) process.on(sig, () => child.kill(sig));
 process.stdout.on("error", () => child.kill());
 process.stdin.on("end", () => setTimeout(() => child.kill(), 3000).unref());
 
-process.stdin.pipe(child.stdin);
 child.stdin.on("error", () => {}); // router gone: its close handler reports it
+
+// build_model / check_model: the bridge rewrites our tool calls into run_python and trims the
+// replies. Raw mode leaves both directions untouched.
+const bridge = raw ? null : createSpecBridge(join(dirname(dirname(fileURLToPath(import.meta.url))), "rhino"), { safe });
+if (raw) {
+  process.stdin.pipe(child.stdin);
+} else {
+  let inBuf = "";
+  const fromClient = (line) => {
+    const { toRouter, toClient } = bridge.fromClient(line.replace(/\r$/, ""));
+    if (toClient) process.stdout.write(toClient + "\n");
+    else if (toRouter === undefined) return; // dropped in safe mode
+    else child.stdin.write(toRouter === line.replace(/\r$/, "") ? line + "\n" : toRouter + "\n");
+  };
+  process.stdin.setEncoding("utf8");
+  process.stdin.on("data", (chunk) => {
+    inBuf += chunk;
+    let i;
+    while ((i = inBuf.indexOf("\n")) >= 0) {
+      const line = inBuf.slice(0, i);
+      inBuf = inBuf.slice(i + 1);
+      fromClient(line);
+    }
+  });
+  process.stdin.on("end", () => {
+    if (inBuf) fromClient(inBuf);
+    child.stdin.end();
+  });
+}
 
 if (!raw) {
   let buf = "";
   const emit = (line) => {
     const clean = line.replace(/\r$/, "");
-    const out = transformLine(clean);
+    const out = bridge.fromRouter(transformLine(clean));
     // Unchanged lines keep their exact bytes, including any \r.
     if (!process.stdout.write((out === clean ? line : out) + "\n")) {
       child.stdout.pause();
