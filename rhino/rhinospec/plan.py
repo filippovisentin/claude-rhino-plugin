@@ -330,19 +330,26 @@ def _door(box, flat, tag, u, v, w, h, r, shape, m):
     return out
 
 
-def _shutter(box, tag, u, v, w, h, depth, m):
-    """Louvred shutter: stiles, top and bottom rails, slats every 10 cm between them."""
+def _shutter(box, along, tag, u, v, w, h, depth, m):
+    """Louvred shutter: stiles, top and bottom rails, and the louvres between them as one sawtooth
+    profile (a slat every 10 cm, tilted out at the bottom). One prism instead of a part per slat
+    keeps a palazzo with 80 shutters far below the part limit."""
     st = min(0.05 * m, w / 6.0)
     rail = min(0.06 * m, h / 10.0)
     out = [box(tag, u, -depth, v, st, depth, h, COLORS["blind"]),
            box(tag, u + w - st, -depth, v, st, depth, h, COLORS["blind"]),
            box(tag, u + st, -depth, v, w - 2 * st, depth, rail, COLORS["blind"]),
            box(tag, u + st, -depth, v + h - rail, w - 2 * st, depth, rail, COLORS["blind"])]
-    span = h - 2 * rail
-    n = max(1, min(30, int(span // (0.10 * m))))
-    for i in range(n):
-        out.append(box(tag + " slat", u + st, -depth * 0.8, v + rail + span * (i + 0.5) / n - 0.02 * m,
-                       w - 2 * st, depth * 0.6, 0.04 * m, COLORS["blind"]))
+    v0, v1 = v + rail, v + h - rail
+    n = max(1, min(30, int((v1 - v0) // (0.10 * m))))
+    pitch = (v1 - v0) / n
+    back, mid, front = -0.2 * depth, -0.5 * depth, -0.8 * depth
+    pts = [[back, v1], [mid, v1]]
+    for i in range(n):   # down the front: each slat leans out to its lower edge
+        top = v1 - i * pitch
+        pts += [[front, top - 0.8 * pitch], [mid, top - pitch]]
+    pts.append([back, v0])
+    out.append(along(tag + " slats", u + st, w - 2 * st, pts, COLORS["blind"]))
     return out
 
 
@@ -581,7 +588,7 @@ def plan_facade(f):
             parts.append(along(tag + " capital", u - lip, w + 2 * lip, _profile("string", v + h - cap_h, cap_h, depth + lip),
                                COLORS[k]))
         elif k == "blind" and h > 0.6 * m and w > 0.25 * m:
-            parts.extend(_shutter(box, tag, u, v, w, h, depth, m))
+            parts.extend(_shutter(box, along, tag, u, v, w, h, depth, m))
         elif k == "rustic":
             parts.extend(_rustication(box, tag, u, v, w, h, depth, opening_boxes, m))
         elif k == "quoin":

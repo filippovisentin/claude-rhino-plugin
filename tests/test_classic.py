@@ -58,7 +58,10 @@ class Classic(unittest.TestCase):
         self.assertEqual(len(named(ps, "tympanum")), 1)
         tymp = bbox(named(ps, "tympanum")[0])
         self.assertAlmostEqual(tymp[1], -0.105)              # set back behind the raking cornices
-        self.assertGreater(len(named(ps, "slat")), 15)
+        slats = named(ps, "slats")
+        self.assertEqual(len(slats), 1)                      # all louvres in one profile
+        self.assertEqual(slats[0]["type"], "prism")
+        self.assertGreater(len(slats[0]["pts"]), 30)         # a tooth every 10 cm on 2 m
         sign = [p for p in ps if p.get("cat") == "shopfronts/signs"]
         self.assertEqual(len(sign), 1)
         self.assertAlmostEqual(bbox(sign[0])[5], 3.2)
