@@ -519,7 +519,7 @@ def _block(part, path, m=1.0):
         "roof": part.get("roof", "flat"),
         "roof_h": _num(part.get("roof_h", 3.0 * m), path + ".roof_h", positive=True),
         "dormers": _int(part.get("dormers", 0), path + ".dormers", 0, 40),
-        "chimneys": _int(part.get("chimneys", 0), path + ".chimneys", 0, 20),
+        "chimneys": 0,
         "faces": {},
     }
     for key in ("name", "color"):
@@ -557,6 +557,16 @@ def _block(part, path, m=1.0):
         sub.update({"w": b["w"] if key in ("front", "back") else b["d"], "h": b["h"], "t": b["t"],
                     "style": b["style"]})
         b["faces"][key] = _facade(sub, fp, m)["els"]
+    ch = part.get("chimneys", 0)
+    if isinstance(ch, list):   # x positions in metres along the front
+        if not 1 <= len(ch) <= 20:
+            _fail(path + ".chimneys", "expected 1..20 positions")
+        b["chimney_at"] = [_num(x, "%s.chimneys[%d]" % (path, i), 0, b["w"]) for i, x in enumerate(ch)]
+        b["chimneys"] = len(ch)
+    else:
+        b["chimneys"] = _int(ch, path + ".chimneys", 0, 20)
+    if "front" in b["faces"]:
+        b["faces"]["front"] = _take_dormers(b, b["faces"]["front"], b["h"])
     return b
 
 
@@ -585,6 +595,21 @@ def _dormer_windows(f):
             if el["k"] == "window" and v >= f["h"] - 1e-6 and not in_pediment([u, v, w, h], peds)]
 
 
+def _take_dormers(b, els, h):
+    """On a pitched roof, windows read above the eaves of the front become dormers where they
+    are (b["dormer_at"]); they and their shutters and hoods up there leave the face."""
+    if b["roof"] not in ("gable", "hip", "mansard"):
+        return els
+    spots = _dormer_windows({"els": els, "h": h})
+    if not spots:
+        return els
+    from .plan import in_pediment, pediment_boxes
+    peds = pediment_boxes({"els": els})
+    b["dormer_at"] = spots
+    return [el for el in els if not (el["box"][1] >= h - 1e-6 and el["k"] != "pediment"
+                                     and not in_pediment(el["box"], peds))]
+
+
 def _needs_block(f):
     roofed = f["roof"] in ("gable", "hip", "mansard")
     return bool(f["depth"]) and (f["roof"] in ("hip", "mansard") or f["dormers"] > 0 or f["chimneys"] > 0
@@ -602,15 +627,7 @@ def _as_block(f):
     b["faces"] = {"front": f["els"]}
     if "chimney_at" in f:
         b["chimney_at"] = f["chimney_at"]
-    spots = _dormer_windows(f) if f["roof"] in ("gable", "hip", "mansard") else []
-    if spots:
-        # The photo shows where the dormers are: build them there, and leave their windows,
-        # shutters and hoods above the eaves to the roof.
-        from .plan import in_pediment, pediment_boxes
-        peds = pediment_boxes(f)
-        b["dormer_at"] = spots
-        b["faces"]["front"] = [el for el in f["els"] if not (el["box"][1] >= f["h"] - 1e-6 and el["k"] != "pediment"
-                                                             and not in_pediment(el["box"], peds))]
+    b["faces"]["front"] = _take_dormers(b, f["els"], f["h"])
     for k in ("name", "color"):
         if k in f:
             b[k] = f[k]
@@ -730,7 +747,14 @@ def validate(spec):
                 notes.append("%s: %d element(s) outside the facade outline not built (above the eaves: "
                              "k pediment, or raise px/h)" % (path, lost))
         elif t == "block":
-            parts.extend(plan_block(_block(p, path, PER_M[units])))
+            b = _block(p, path, PER_M[units])
+            parts.extend(plan_block(b))
+            for key, els in sorted(b["faces"].items()):
+                lost = dropped_elements({"w": b["w"] if key in ("front", "back") else b["d"], "h": b["h"],
+                                         "per_m": b["per_m"], "els": els})
+                if lost:
+                    notes.append("%s.faces.%s: %d element(s) outside the face not built (above the eaves: "
+                                 "k pediment, or a pitched roof for dormers)" % (path, key, lost))
         elif t == "stair":
             parts.extend(plan_stair(_stair(p, path, PER_M[units])))
         elif t == "column":

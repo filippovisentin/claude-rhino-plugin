@@ -25,6 +25,7 @@ Each line is `OK`, `WARN` or `FAIL`. Fix the first `FAIL` before looking at the 
 | `config` | Another Rhino MCP entry (often `uvx rhinomcp`) | That is the community plugin, which speaks a different protocol on the same port. Ask the user before removing it: `claude mcp remove <name> -s user` for `user:` lines, `-s local` (run in that project) for `local (project …)` lines, `-s project` for `project (….mcp.json)` lines. |
 | `mcp` | Timeout, error response, or "cannot start router" | Run the router path from the doctor output by hand and read its stderr. An error response usually means the Rhino-MCP-Platform package and router versions differ: update the package and restart Rhino. |
 | `rhino` | No running Rhino | Start Rhino 8. The router can also start one through its `spawn_slot` tool. |
+| `detector` | INFO: `detect_facade` off | Optional. The local facade detector needs a Python with `ultralytics` and trained weights (`data/venv-det`, `data/det-runs/all11s/weights/best.pt`, or `RHINO_FACADE_PYTHON` / `RHINO_FACADE_WEIGHTS`); see the README section "Local facade detector". Everything else works without it. |
 
 ## Symptom: "Invalid response frame length 1213486160"
 

@@ -126,6 +126,24 @@ top in 3-5 steps; the topmost step is the **corona**, a vertical face that throw
 **Dormers** (*abbaini*) stand on the roof slope on the window axes below, 1.0-1.5 wide.
 Eaves overhang 0.3-1.0 on houses; on tenements the main cornice is the eave.
 
+## 8b. From the anatomy to spec elements
+
+| element in the photo | spec |
+|---|---|
+| window, French window, shop front, door | `window`, `door`, `shop` (shape rect, arch, seg; `round` for an oculus) |
+| open portico, loggia, pilotis floor | `arcade` with `d` = recess depth; doors inside go on its back wall |
+| temple front over a risalit or portal | `pediment` (rises above the eaves; its oculus and reliefs are kept) |
+| window crown | `cornice` (shape flat, tri, seg) |
+| string course, main cornice, slab edge, eave | `molding` (`d` 0.6-1.2 for a main cornice) |
+| pilaster, lesene, pier | `pillar`; `shape:"round"` for round piers and engaged columns |
+| giant order spanning floors | a `column` part in front of the facade |
+| balcony | `balcony` with `rail` balustrade, iron, solid or glass |
+| risalit, bay, setback | a second facade part moved forward or back with `at` |
+| dormer, chimney | windows read above the eaves of a facade with depth and a pitched roof; `chimneys:[x...]` |
+| rusticated base, quoins | `rustic`, `quoin` |
+| dark band between ribbon windows | `spandrel` |
+| colours of wall, stone trim, frames, shutters, roof | `palette` |
+
 ## 9. Reading rules that follow from the above
 
 1. Count bays and floors first; every element sits on a bay axis or a floor line.

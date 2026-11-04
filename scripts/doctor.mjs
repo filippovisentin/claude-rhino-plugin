@@ -6,6 +6,9 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { findInstalls, findRouter, packagesRoots } from "./find-router.mjs";
 import { findConflicts, isConflicting, describe } from "./config-check.mjs";
+import { findDetector } from "./facade-detector.mjs";
+import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const results = [];
 const report = (status, check, detail) => results.push({ status, check, detail });
@@ -42,6 +45,11 @@ for (const [name, s] of Object.entries(projectMcp?.mcpServers ?? {})) {
 }
 if (conf.length) report("warn", "config", `other Rhino MCP entries may shadow or conflict with this plugin:\n    ${conf.join("\n    ")}`);
 else report("ok", "config", "no conflicting Rhino MCP entries");
+
+// 4b. Optional local facade detector (detect_facade): informational, never a failure
+const det = findDetector(dirname(dirname(fileURLToPath(import.meta.url))));
+report(det ? "ok" : "info", "detector", det ? `detect_facade on (${det.weights})`
+  : "detect_facade off: no data/venv-det Python or trained weights (optional, see README)");
 
 // 5. Live handshake through the router: list_slots shows running Rhino instances
 function handshake() {
@@ -108,7 +116,7 @@ if (router) await handshake();
 if (process.argv.includes("--json")) {
   console.log(JSON.stringify(results, null, 2));
 } else {
-  const tag = { ok: "OK  ", warn: "WARN", fail: "FAIL" };
+  const tag = { ok: "OK  ", warn: "WARN", fail: "FAIL", info: "INFO" };
   for (const r of results) console.log(`[${tag[r.status]}] ${r.check.padEnd(8)} ${r.detail}`);
 }
 process.exitCode = results.some((r) => r.status === "fail") ? 1 : 0;

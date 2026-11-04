@@ -200,6 +200,34 @@ class SmallArches(unittest.TestCase):
             self.assertTrue(of(ps, "surround"))
 
 
+class BlockParity(unittest.TestCase):
+    """A block does what a facade does: dormers from the photo, chimney positions, notes."""
+
+    def block(self, **kw):
+        b = dict({"type": "block", "name": "B", "w": 20, "d": 12, "h": 10, "roof": "hip", "roof_h": 4,
+                  "faces": {"front": {"px": [0, 100, 1000, 600],
+                                      "els": [{"k": "window", "box": [100, 300, 160, 400]},
+                                              {"k": "window", "box": [300, 40, 340, 90]}]},
+                            "right": {"px": [0, 100, 600, 600],
+                                      "els": [{"k": "window", "box": [100, 40, 160, 90]}]}}}, **kw)
+        return validate({"units": "m", "parts": [b]})
+
+    def test_block_front_dormers_chimneys_and_notes(self):
+        out = self.block(chimneys=[4, 16])
+        dorm = [p for p in out["parts"] if p.get("cat") == "roof/dormers" and p["type"] == "box"]
+        self.assertEqual(len(dorm), 1)
+        self.assertAlmostEqual((bbox(dorm[0])[0] + bbox(dorm[0])[3]) / 2.0, 6.4, places=1)
+        chim = [p for p in out["parts"] if p.get("cat") == "roof/chimneys" and "cap" not in p["name"]]
+        self.assertEqual(sorted(round((bbox(p)[0] + bbox(p)[3]) / 2.0, 3) for p in chim), [4.0, 16.0])
+        self.assertEqual(len(out["notes"]), 1)               # the right face's window above its eaves
+        self.assertIn("faces.right", out["notes"][0])
+
+    def test_block_chimney_positions_are_checked(self):
+        from rhinospec import SpecError
+        with self.assertRaises(SpecError):
+            self.block(chimneys=[30])
+
+
 class Palette(unittest.TestCase):
     def test_photo_colours_reach_each_family(self):
         pal = {"wall": "#8a8f94", "shutters": "#6f8fa6", "glass": "#2f3b46", "frames": "#ffffff", "trim": "#c9c2b5",
