@@ -732,5 +732,445 @@
     }
    ]
   }
+ },
+ {
+  "id": "scala",
+  "prompt": "Scala dritta per salire di un piano (3 m), larga 1,1 m, corrimano su entrambi i lati",
+  "spec": {
+   "units": "m",
+   "layer": "Scala",
+   "lang": "it",
+   "clear": true,
+   "parts": [
+    {
+     "type": "stair",
+     "name": "Scala",
+     "h": 3.0,
+     "w": 1.1
+    }
+   ]
+  },
+  "expect": {
+   "size": [
+    1.1,
+    5.04,
+    3.92
+   ]
+  }
+ },
+ {
+  "id": "chiocciola2",
+  "prompt": "Scala a chiocciola per un soppalco alto 2,8 m, diametro 2 m, corrimano esterno",
+  "spec": {
+   "units": "m",
+   "layer": "Chiocciola",
+   "lang": "it",
+   "clear": true,
+   "parts": [
+    {
+     "type": "stair",
+     "name": "Chiocciola",
+     "kind": "spiral",
+     "h": 2.8,
+     "r": 1.0,
+     "rail": "outer"
+    }
+   ]
+  },
+  "expect": {
+   "size": [
+    2.0,
+    2.0,
+    3.72
+   ]
+  }
+ },
+ {
+  "id": "palazzo_classico",
+  "prompt": "Palazzo ottocentesco d'angolo, 5 piani, 7 finestre in facciata e 5 sul fianco, bugnato al piano terra, balconi al piano nobile, cornicione, tetto a mansarda con abbaini e comignoli",
+  "spec": {
+   "units": "m",
+   "layer": "Palazzo",
+   "lang": "it",
+   "clear": true,
+   "parts": [
+    {
+     "type": "block",
+     "name": "Palazzo",
+     "w": 15,
+     "d": 11,
+     "h": 19,
+     "floors": 5,
+     "style": "classic",
+     "roof": "mansard",
+     "roof_h": 5,
+     "dormers": 5,
+     "chimneys": 2,
+     "faces": {
+      "front": {
+       "els": [
+        {
+         "k": "rustic",
+         "box": [
+          0,
+          0,
+          15,
+          4.2
+         ]
+        },
+        {
+         "k": "door",
+         "box": [
+          6.6,
+          0,
+          1.8,
+          3.4
+         ],
+         "shape": "arch"
+        },
+        {
+         "k": "window",
+         "box": [
+          0.9,
+          0.9,
+          1.2,
+          2.2
+         ],
+         "xs": [
+          0.9,
+          3.0,
+          9.9,
+          12.0
+         ]
+        },
+        {
+         "k": "window",
+         "box": [
+          0.9,
+          5.2,
+          1.2,
+          2.2
+         ],
+         "grid": [
+          7,
+          4,
+          2.07,
+          3.1
+         ],
+         "bars": [
+          1,
+          1
+         ]
+        },
+        {
+         "k": "cornice",
+         "box": [
+          0.7,
+          7.5,
+          1.6,
+          0.6
+         ],
+         "grid": [
+          7,
+          1,
+          2.07,
+          0
+         ],
+         "shape": "tri"
+        },
+        {
+         "k": "sill",
+         "box": [
+          0.75,
+          4.6,
+          1.5,
+          0.5
+         ],
+         "grid": [
+          7,
+          4,
+          2.07,
+          3.1
+         ]
+        },
+        {
+         "k": "balcony",
+         "box": [
+          4.8,
+          4.8,
+          5.4,
+          1.15
+         ],
+         "d": 1.2
+        },
+        {
+         "k": "molding",
+         "box": [
+          0,
+          4.2,
+          15,
+          0.4
+         ],
+         "d": 0.2
+        },
+        {
+         "k": "molding",
+         "box": [
+          0,
+          18,
+          15,
+          1
+         ],
+         "d": 0.9
+        },
+        {
+         "k": "quoin",
+         "box": [
+          0,
+          4.6,
+          0.8,
+          13.4
+         ]
+        },
+        {
+         "k": "quoin",
+         "box": [
+          14.2,
+          4.6,
+          0.8,
+          13.4
+         ]
+        }
+       ]
+      },
+      "right": {
+       "els": [
+        {
+         "k": "rustic",
+         "box": [
+          0,
+          0,
+          11,
+          4.2
+         ]
+        },
+        {
+         "k": "window",
+         "box": [
+          1,
+          0.9,
+          1.2,
+          2.2
+         ],
+         "grid": [
+          5,
+          5,
+          2.0,
+          3.1
+         ],
+         "bars": [
+          1,
+          1
+         ]
+        },
+        {
+         "k": "molding",
+         "box": [
+          0,
+          4.2,
+          11,
+          0.4
+         ],
+         "d": 0.2
+        },
+        {
+         "k": "molding",
+         "box": [
+          0,
+          18,
+          11,
+          1
+         ],
+         "d": 0.9
+        }
+       ]
+      }
+     }
+    }
+   ]
+  },
+  "expect": {
+   "size": [
+    15.9,
+    12.2,
+    25.4
+   ]
+  }
+ },
+ {
+  "id": "villa",
+  "prompt": "Villa a un piano 12 x 9 m con tetto a padiglione, porta d'ingresso al centro, quattro finestre in facciata, un comignolo",
+  "spec": {
+   "units": "m",
+   "layer": "Villa",
+   "lang": "it",
+   "clear": true,
+   "parts": [
+    {
+     "type": "block",
+     "name": "Villa",
+     "w": 12,
+     "d": 9,
+     "h": 3.2,
+     "t": 0.35,
+     "roof": "hip",
+     "roof_h": 2.5,
+     "chimneys": 1,
+     "faces": {
+      "front": {
+       "els": [
+        {
+         "k": "door",
+         "box": [
+          5.5,
+          0,
+          1.0,
+          2.3
+         ]
+        },
+        {
+         "k": "window",
+         "box": [
+          1.0,
+          0.9,
+          1.2,
+          1.4
+         ],
+         "xs": [
+          1.0,
+          3.3,
+          7.5,
+          9.8
+         ]
+        }
+       ]
+      },
+      "back": {
+       "els": [
+        {
+         "k": "window",
+         "box": [
+          1.5,
+          0.9,
+          1.2,
+          1.4
+         ],
+         "grid": [
+          4,
+          1,
+          2.6,
+          0
+         ]
+        }
+       ]
+      }
+     }
+    }
+   ]
+  },
+  "expect": {
+   "size": [
+    12.0,
+    9.0,
+    7.1
+   ]
+  }
+ },
+ {
+  "id": "portico",
+  "prompt": "Portico con sei colonne doriche alte 4 m, interasse 2,5 m, trabeazione e tetto piano",
+  "spec": {
+   "units": "m",
+   "layer": "Portico",
+   "lang": "it",
+   "clear": true,
+   "parts": [
+    {
+     "type": "column",
+     "name": "Colonne",
+     "order": "doric",
+     "h": 4.0,
+     "count": 6,
+     "spacing": 2.5
+    },
+    {
+     "type": "box",
+     "name": "architrave",
+     "group": "Trabeazione",
+     "at": [
+      -0.4,
+      -0.4,
+      4.0
+     ],
+     "size": [
+      13.3,
+      0.8,
+      0.5
+     ]
+    },
+    {
+     "type": "box",
+     "name": "fregio",
+     "group": "Trabeazione",
+     "at": [
+      -0.4,
+      -0.4,
+      4.5
+     ],
+     "size": [
+      13.3,
+      0.8,
+      0.45
+     ]
+    },
+    {
+     "type": "box",
+     "name": "cornice",
+     "group": "Trabeazione",
+     "at": [
+      -0.6,
+      -0.6,
+      4.95
+     ],
+     "size": [
+      13.7,
+      1.2,
+      0.25
+     ]
+    },
+    {
+     "type": "box",
+     "name": "tetto",
+     "group": "Tetto",
+     "at": [
+      -0.6,
+      -0.6,
+      5.2
+     ],
+     "size": [
+      13.7,
+      4.0,
+      0.2
+     ]
+    }
+   ]
+  },
+  "expect": {
+   "size": [
+    13.7,
+    4.0,
+    5.4
+   ]
+  }
  }
 ]

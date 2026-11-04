@@ -77,7 +77,7 @@ class Facades(unittest.TestCase):
 
     def test_projections_and_balcony(self):
         ps = parts(facade(rot=90, els=[{"k": "cornice", "box": [0, 8, 10, 0.5], "d": 0.5},
-                                       {"k": "balcony", "box": [2, 3, 3, 1.1]}]))
+                                       {"k": "balcony", "box": [2, 3, 3, 1.1], "rail": "solid"}]))
         steps = [p for p in ps if "cornice" in p["name"]]
         self.assertEqual(len(steps), 3)                              # corbelled profile
         self.assertAlmostEqual(sum(p["size"][2] for p in steps), 0.5)

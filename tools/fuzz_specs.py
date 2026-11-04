@@ -14,7 +14,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "rhino"))
 from rhinospec import SpecError, validate  # noqa: E402
 
-CLASSES = ("window", "door", "shop", "balcony", "cornice", "molding", "pillar", "sill", "blind", "deco")
+CLASSES = ("window", "door", "shop", "balcony", "cornice", "molding", "pillar", "sill", "blind", "deco", "rustic", "quoin")
 
 
 def rnd_box(r, W, H):
@@ -40,13 +40,34 @@ def facade(r):
             el["shape"] = r.choice(("flat", "tri", "seg"))
         if r.random() < 0.3:
             el["d"] = round(r.uniform(0.01, 1.5), 3)
+        if k in ("window", "door", "shop") and r.random() < 0.2:
+            el["sur"] = round(r.uniform(0, 0.4), 3)
+        if k == "deco" and r.random() < 0.6:
+            el["shape"] = r.choice(("block", "console", "oval", "panel"))
+        if k == "balcony" and r.random() < 0.6:
+            el["rail"] = r.choice(("balustrade", "iron", "solid"))
         els.append(el)
     f = {"type": "facade", "w": W, "h": H, "t": round(r.uniform(0.15, 0.8), 2), "els": els,
-         "at": [round(r.uniform(-50, 50), 2), round(r.uniform(-50, 50), 2), 0], "rot": round(r.uniform(-180, 180), 1)}
+         "at": [round(r.uniform(-50, 50), 2), round(r.uniform(-50, 50), 2), 0], "rot": round(r.uniform(-180, 180), 1),
+         "style": r.choice(("plain", "classic"))}
     if r.random() < 0.5:
         f.update(depth=round(r.uniform(2, 30), 2), floors=r.randint(1, 10), roof=r.choice(("flat", "gable", "none")),
                  roof_h=round(r.uniform(0.5, 6), 2))
     return f
+
+
+def block(r):
+    """A block whose faces are random facades (front always, others sometimes)."""
+    f = facade(r)
+    W, D = f["w"], round(r.uniform(4, 30), 2)
+    faces = {"front": {"els": f["els"]}}
+    for side in ("right", "back", "left"):
+        if r.random() < 0.4:
+            faces[side] = {"els": [{"k": "window", "box": [1, 1, 1, 1.5], "grid": [3, 2, 2.5, 3]}]}
+    return {"type": "block", "w": W, "d": D, "h": f["h"], "t": min(f["t"], W / 2.5, D / 2.5), "faces": faces,
+            "floors": r.randint(1, 10), "roof": r.choice(("flat", "gable", "hip", "mansard", "none")),
+            "roof_h": round(r.uniform(0.5, 6), 2), "rot": f["rot"], "at": f["at"], "style": f["style"],
+            "dormers": r.choice((0, 0, 1, 3, 8)), "chimneys": r.choice((0, 0, 1, 2, 5))}
 
 
 def primitive(r):
@@ -94,7 +115,8 @@ def primitive(r):
 
 
 def make(r, i):
-    parts = [facade(r) if r.random() < 0.6 else primitive(r) for _ in range(r.randint(1, 4))]
+    pick = lambda: facade(r) if r.random() < 0.45 else block(r) if r.random() < 0.4 else primitive(r)
+    parts = [pick() for _ in range(r.randint(1, 4))]
     return {"units": r.choice(("m", "cm", "mm")) if r.random() < 0.1 else "m", "layer": "FUZZ", "clear": True, "parts": parts}
 
 

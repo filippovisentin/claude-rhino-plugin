@@ -25,8 +25,13 @@ NAME_RE = re.compile(r"^[A-Za-z0-9 _.\-]{1,64}\Z")
 COLOR_RE = re.compile(r"^#[0-9a-fA-F]{6}\Z")
 
 PRIMITIVES = ("box", "cyl", "cone", "sphere", "torus", "extrude", "prism", "revolve", "loft", "pipe", "panel")
-COMPOSITES = ("array", "building", "facade", "block")
-FACADE_CLASSES = ("window", "door", "shop", "balcony", "cornice", "molding", "pillar", "sill", "blind", "deco")
+COMPOSITES = ("array", "building", "facade", "block", "stair", "column")
+# Classical orders: column height in lower diameters (Vignola).
+ORDERS = {"tuscan": 7.0, "doric": 8.0, "ionic": 9.0, "corinthian": 10.0}
+FACADE_CLASSES = ("window", "door", "shop", "balcony", "cornice", "molding", "pillar", "sill", "blind", "deco", "rustic", "quoin")
+DECO_SHAPES = ("block", "console", "oval", "panel")
+STYLES = ("plain", "classic")
+RAILS = ("balustrade", "iron", "solid")
 OPENINGS = ("window", "door", "shop")
 COMMON_KEYS = ("type", "name", "at", "rot", "tilt", "color", "cut", "group", "obj", "cat")
 
@@ -44,8 +49,10 @@ _KEYS = {
     "panel": ("size", "t", "holes"),
     "array": ("of", "n", "step"),
     "building": ("footprint", "floors", "floor_h", "wall_t", "slab_t", "openings", "roof", "roof_h"),
-    "facade": ("w", "h", "t", "els", "frac", "px", "depth", "floors", "roof", "roof_h"),
-    "block": ("w", "d", "h", "t", "floors", "roof", "roof_h", "faces"),
+    "facade": ("w", "h", "t", "els", "frac", "px", "depth", "floors", "roof", "roof_h", "style"),
+    "column": ("order", "h", "d", "count", "spacing", "axis"),
+    "stair": ("kind", "h", "w", "r", "core", "tread", "step", "rail"),
+    "block": ("w", "d", "h", "t", "floors", "roof", "roof_h", "faces", "style", "dormers", "chimneys"),
 }
 
 FACES = ("front", "right", "back", "left")
@@ -390,6 +397,9 @@ def _facade(part, path, m=1.0):
     if f["roof"] not in ("flat", "gable", "none"):
         _fail(path + ".roof", "expected flat, gable or none")
     f["roof_h"] = _num(part.get("roof_h", 3.0 * m), path + ".roof_h", positive=True)
+    f["style"] = part.get("style", "plain")
+    if f["style"] not in STYLES:
+        _fail(path + ".style", "expected plain or classic")
     frac = part.get("frac", False)
     if not isinstance(frac, bool):
         _fail(path + ".frac", "expected true or false")
@@ -401,7 +411,7 @@ def _facade(part, path, m=1.0):
         ep = "%s.els[%d]" % (path, i)
         if not isinstance(e, dict):
             _fail(ep, "expected an object")
-        _unknown(e, ("k", "box", "grid", "xs", "ys", "d", "bars", "shape"), ep)
+        _unknown(e, ("k", "box", "grid", "xs", "ys", "d", "bars", "shape", "sur", "rail"), ep)
         if e.get("k") not in FACADE_CLASSES:
             _fail(ep + ".k", "expected one of %s" % ", ".join(FACADE_CLASSES))
         el = {"k": e["k"], "box": _vec(e.get("box"), ep + ".box", 4)}
@@ -450,10 +460,19 @@ def _facade(part, path, m=1.0):
         if "d" in e:
             el["d"] = _num(e["d"], ep + ".d", 0, 10 * m)
         if "shape" in e:
-            allowed = ("rect", "arch", "seg") if el["k"] in OPENINGS else ("flat", "tri", "seg") if el["k"] == "cornice" else ()
+            allowed = (("rect", "arch", "seg") if el["k"] in OPENINGS else ("flat", "tri", "seg") if el["k"] == "cornice"
+                       else DECO_SHAPES if el["k"] == "deco" else ())
             if e["shape"] not in allowed:
                 _fail(ep + ".shape", "expected one of %s" % (", ".join(allowed) or "nothing for %s" % el["k"]))
             el["shape"] = e["shape"]
+        if "sur" in e:
+            if el["k"] not in OPENINGS:
+                _fail(ep + ".sur", "only windows, doors and shops have a surround")
+            el["sur"] = _num(e["sur"], ep + ".sur", 0, 2 * m)
+        if "rail" in e:
+            if el["k"] != "balcony" or e["rail"] not in RAILS:
+                _fail(ep + ".rail", "balconies only: one of %s" % ", ".join(RAILS))
+            el["rail"] = e["rail"]
         if "bars" in e:
             if el["k"] not in OPENINGS:
                 _fail(ep + ".bars", "only windows, doors and shops have glazing bars")
@@ -481,6 +500,8 @@ def _block(part, path, m=1.0):
         "floors": _int(part.get("floors", 1), path + ".floors", 1, MAX_FLOORS),
         "roof": part.get("roof", "flat"),
         "roof_h": _num(part.get("roof_h", 3.0 * m), path + ".roof_h", positive=True),
+        "dormers": _int(part.get("dormers", 0), path + ".dormers", 0, 40),
+        "chimneys": _int(part.get("chimneys", 0), path + ".chimneys", 0, 20),
         "faces": {},
     }
     for key in ("name", "color"):
@@ -489,8 +510,11 @@ def _block(part, path, m=1.0):
             if not isinstance(part[key], str) or not rx.match(part[key]):
                 _fail("%s.%s" % (path, key), "invalid %s" % key)
             b[key] = part[key].lower() if key == "color" else part[key]
-    if b["roof"] not in ("flat", "gable", "none"):
-        _fail(path + ".roof", "expected flat, gable or none")
+    if b["roof"] not in ("flat", "gable", "hip", "mansard", "none"):
+        _fail(path + ".roof", "expected flat, gable, hip, mansard or none")
+    b["style"] = part.get("style", "plain")
+    if b["style"] not in STYLES:
+        _fail(path + ".style", "expected plain or classic")
     if b["t"] < 0.05 * m:
         _fail(path + ".t", "walls thinner than 0.05 leave no room for window recesses")
     if b["w"] <= 2 * b["t"] or b["d"] <= 2 * b["t"]:
@@ -510,9 +534,74 @@ def _block(part, path, m=1.0):
             _fail(fp, "expected an object")
         _unknown(face, ("els", "px", "frac"), fp)
         sub = dict(face)
-        sub.update({"w": b["w"] if key in ("front", "back") else b["d"], "h": b["h"], "t": b["t"]})
+        sub.update({"w": b["w"] if key in ("front", "back") else b["d"], "h": b["h"], "t": b["t"],
+                    "style": b["style"]})
         b["faces"][key] = _facade(sub, fp, m)["els"]
     return b
+
+
+def _stair(part, path, m=1.0):
+    """Straight stair (w wide, climbing along +y) or spiral stair (radius r about a core column,
+    climbing counter-clockwise from +x). Steps follow h: risers of about 0.17 m."""
+    _unknown(part, ("type", "name", "at", "rot", "color") + _KEYS["stair"], path)
+    s = {
+        "kind": part.get("kind", "straight"),
+        "h": _num(part.get("h"), path + ".h", positive=True),
+        "per_m": m,
+        "at": _vec(part.get("at", [0, 0, 0]), path + ".at", 3),
+        "rot": _num(part.get("rot", 0), path + ".rot", -360, 360),
+        "rail": part.get("rail", "both"),
+    }
+    if s["kind"] not in ("straight", "spiral"):
+        _fail(path + ".kind", "expected straight or spiral")
+    if s["rail"] not in ("both", "left", "right", "outer", "none"):
+        _fail(path + ".rail", "expected both, left, right, outer or none")
+    other = ("r", "core", "step") if s["kind"] == "straight" else ("w", "tread")
+    for key in other:
+        if key in part:
+            _fail("%s.%s" % (path, key), "not used by a %s stair" % s["kind"])
+    s["n"] = max(2, int(round(s["h"] / (0.17 * m))))
+    if s["n"] > 200:
+        _fail(path + ".h", "more than 200 steps")
+    if s["kind"] == "straight":
+        s["w"] = _num(part.get("w", 1.0 * m), path + ".w", positive=True)
+        s["tread"] = _num(part.get("tread", 0.28 * m), path + ".tread", positive=True)
+    else:
+        s["r"] = _num(part.get("r", 0.9 * m), path + ".r", positive=True)
+        s["core"] = _num(part.get("core", 0.1 * m), path + ".core", positive=True)
+        s["step"] = _num(part.get("step", 25), path + ".step", 5, 90)
+        if s["core"] >= s["r"] * 0.8:
+            _fail(path + ".core", "the core must be well inside r")
+    if "name" in part:
+        if not isinstance(part["name"], str) or not NAME_RE.match(part["name"]):
+            _fail(path + ".name", "1-64 chars of letters, digits, space, _ . -")
+        s["name"] = part["name"]
+    return s
+
+
+def _column(part, path, m=1.0):
+    """A classical column (or a row of them): plinth, base, shaft with entasis, capital of the
+    given order. d defaults to h divided by the order's ratio."""
+    _unknown(part, ("type", "name", "at", "rot") + _KEYS["column"], path)
+    c = {"order": part.get("order", "tuscan"), "h": _num(part.get("h"), path + ".h", positive=True), "per_m": m,
+         "at": _vec(part.get("at", [0, 0, 0]), path + ".at", 3), "rot": _num(part.get("rot", 0), path + ".rot", -360, 360)}
+    if c["order"] not in ORDERS:
+        _fail(path + ".order", "expected one of %s" % ", ".join(sorted(ORDERS)))
+    c["d"] = _num(part.get("d", c["h"] / ORDERS[c["order"]]), path + ".d", positive=True)
+    if c["d"] > c["h"] / 3.0:
+        _fail(path + ".d", "a column is at least three diameters tall")
+    c["count"] = _int(part.get("count", 1), path + ".count", 1, 50)
+    c["spacing"] = _num(part.get("spacing", 3.0 * c["d"]), path + ".spacing", positive=True)
+    if c["count"] > 1 and c["spacing"] < 1.4 * c["d"]:
+        _fail(path + ".spacing", "columns closer than their plinths")
+    c["axis"] = part.get("axis", "x")
+    if c["axis"] not in ("x", "y"):
+        _fail(path + ".axis", "expected x or y")
+    if "name" in part:
+        if not isinstance(part["name"], str) or not NAME_RE.match(part["name"]):
+            _fail(path + ".name", "1-64 chars of letters, digits, space, _ . -")
+        c["name"] = part["name"]
+    return c
 
 
 def validate(spec):
@@ -520,7 +609,7 @@ def validate(spec):
 
     Arrays and buildings are expanded here, so the Rhino side only ever sees primitives.
     """
-    from .plan import plan_block, plan_building, plan_facade  # local import keeps the module graph acyclic
+    from .plan import plan_block, plan_building, plan_column, plan_facade, plan_stair  # local import: acyclic graph
 
     if not isinstance(spec, dict):
         _fail("spec", "expected a JSON object")
@@ -555,6 +644,10 @@ def validate(spec):
             parts.extend(plan_facade(_facade(p, path, PER_M[units])))
         elif t == "block":
             parts.extend(plan_block(_block(p, path, PER_M[units])))
+        elif t == "stair":
+            parts.extend(plan_stair(_stair(p, path, PER_M[units])))
+        elif t == "column":
+            parts.extend(plan_column(_column(p, path, PER_M[units])))
         else:
             parts.append(_primitive(p, path))
         if len(parts) > MAX_PARTS:

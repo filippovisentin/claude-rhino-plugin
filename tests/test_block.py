@@ -69,8 +69,8 @@ class Block(unittest.TestCase):
         for b in glass:   # recessed into the right wall, x between 19.6 and 20
             self.assertTrue(19.6 - 1e-9 <= b[0] and b[3] <= 20 + 1e-9, b)
         door = [bbox(p) for p in ps if p.get("cat") == "doors/leaves"]
-        self.assertEqual(len(door), 1)
-        self.assertAlmostEqual(door[0][2], 0.06)   # door box starts on the ground line, inside the frame
+        self.assertEqual(len(door), 3)                      # one leaf with two raised panels
+        self.assertAlmostEqual(min(b[2] for b in door), 0.06)   # starts on the ground line, inside the frame
 
     def test_rotation_and_position(self):
         b = dict(BLOCK, rot=90, at=[100, 50, 3])
@@ -86,6 +86,48 @@ class Block(unittest.TestCase):
         deep = dict(BLOCK, w=8, d=14, roof="gable", roof_h=4)
         roof = [bbox(p) for p in parts(deep) if p.get("cat") == "roof"]
         self.assertTrue(close(union(roof), [0, 0, 15, 8, 14, 19.3]), union(roof))
+
+    def test_style_reaches_every_face(self):
+        ps = parts(dict(BLOCK, style="classic"))
+        self.assertTrue([p for p in ps if p.get("face") == "front" and p.get("cat") == "windows/surrounds"])
+        self.assertTrue([p for p in ps if p.get("face") == "right" and p.get("cat") == "windows/surrounds"])
+        self.assertFalse([p for p in parts() if p.get("cat") == "windows/surrounds"])
+
+    def test_hip_and_mansard_roofs(self):
+        for roof, tiers in (("hip", 1), ("mansard", 2)):
+            ps = parts(dict(BLOCK, roof=roof, roof_h=5))
+            lofts = [p for p in ps if p["type"] == "loft"]
+            self.assertEqual(len(lofts), tiers, roof)
+            u = union([bbox(p) for p in lofts])
+            self.assertTrue(close(u, [0, 0, 15.3, 20, 12, 20.3]), (roof, u))
+        square = dict(BLOCK, w=10, d=10, roof="hip")   # a pyramid still has a (tiny) ridge
+        self.assertEqual(len([p for p in parts(square) if p["type"] == "loft"]), 1)
+
+    def test_dormers(self):
+        ps = parts(dict(BLOCK, roof="mansard", roof_h=5, dormers=5))
+        bodies = [p for p in ps if p.get("cat") == "roof/dormers" and p["type"] == "box"]
+        glass = [p for p in ps if p.get("cat") == "roof/dormers/glass"]
+        self.assertEqual((len(bodies), len(glass)), (10, 10))      # five on the front, five on the back
+        for p in bodies:   # inside the roof outline, above the walls
+            b = bbox(p)
+            self.assertTrue(0 < b[0] and b[3] < 20 and 0 < b[1] and b[4] < 12 and b[2] > 15.3 and b[5] < 20.3, b)
+        paths = set("::".join(layer_path("T", p, "it")) for p in ps)
+        self.assertIn("T::angolo::Tetto::Abbaini::Vetri", paths)
+        # gable and hip: only on slopes facing front and back (w >= d); never on flat roofs or low pitches
+        self.assertTrue([p for p in parts(dict(BLOCK, roof="gable", roof_h=4, dormers=3)) if p.get("cat") == "roof/dormers"])
+        self.assertFalse([p for p in parts(dict(BLOCK, roof="flat", dormers=3)) if "dormer" in p["name"]])
+        self.assertFalse([p for p in parts(dict(BLOCK, roof="hip", roof_h=1, dormers=3)) if "dormer" in p["name"]])
+        self.assertFalse([p for p in parts(dict(BLOCK, w=8, d=14, roof="gable", roof_h=4, dormers=3))
+                          if "dormer" in p["name"]])
+
+    def test_chimneys(self):
+        ps = parts(dict(BLOCK, roof="gable", roof_h=4, chimneys=2))
+        stacks = [bbox(p) for p in ps if p.get("cat") == "roof/chimneys" and "cap" not in p["name"]]
+        self.assertEqual(len(stacks), 2)
+        for b in stacks:   # on the ridge, a metre above it
+            self.assertAlmostEqual(b[1], 5.7)
+            self.assertAlmostEqual(b[5], 15.3 + 4 + 1)
+        self.assertFalse([p for p in parts(dict(BLOCK, roof="none", chimneys=2)) if "chimney" in p["name"]])
 
     def test_plain_block_and_units(self):
         plain = {"type": "block", "w": 6000, "d": 4000, "h": 3000}
@@ -108,6 +150,7 @@ class Block(unittest.TestCase):
             (dict(BLOCK, t=7), ".w"),
             (dict(BLOCK, t=0.01), ".t"),
             (dict(BLOCK, roof="dome"), ".roof"),
+            (dict(BLOCK, style="gothic"), ".style"),
             (dict(BLOCK, depth=3), "unknown key(s) depth"),
         ]
         for spec, where in bad:

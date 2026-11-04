@@ -5,6 +5,11 @@
   python tools/facade_bench.py score ID PRED    per-class IoU against the annotation (px specs: in photo pixels)
   python tools/facade_bench.py overlay ID PRED  draws the prediction over the photo (data/work/ID.overlay.jpg)
   python tools/facade_bench.py sample N         N facade ids spread over the dataset
+  python tools/facade_bench.py errors ID PRED   error analysis of a px reading: per class, objects missed and
+                                                invented, and the systematic offsets of the matched boxes
+  python tools/facade_bench.py crop ID x0 y0 x1 y1
+                                                zoomed crop of the original photo (data/work/ID.crop.jpg) for
+                                                reading thin elements; x0..y1 are pixels of data/work/ID.jpg
 
 ID is a file stem such as cmp_b0001. Scoring works in facade fractions, so it ignores the
 metric scale, which a single photo cannot fix anyway. Needs Pillow for prep and overlay.
@@ -184,7 +189,8 @@ def prep(fid, size=768):
 
 
 COLORS = {"window": "#00a0ff", "door": "#ff8000", "shop": "#ff00ff", "balcony": "#00ff00", "cornice": "#ff0000",
-          "molding": "#ffff00", "pillar": "#00ffff", "sill": "#8000ff", "blind": "#008000", "deco": "#804000"}
+          "molding": "#ffff00", "pillar": "#00ffff", "sill": "#8000ff", "blind": "#008000", "deco": "#804000",
+          "rustic": "#a0a0a0", "quoin": "#606060"}
 
 
 def overlay(fid, pred_spec):
@@ -195,6 +201,13 @@ def overlay(fid, pred_spec):
     im = Image.open(src).convert("RGB")
     draw = ImageDraw.Draw(im)
     iw, ih = im.size
+    if any(q.get("type") == "facade" and "px" in q for q in pred_spec.get("parts", [])):
+        # px specs are read in the prepped photo's pixels: draw those boxes as they are.
+        for k, b in px_boxes(pred_spec):
+            draw.rectangle(b, outline=COLORS[k], width=2)
+        out = os.path.join(WORK, fid + ".overlay.jpg")
+        im.save(out, quality=85)
+        return out
     for k, (u, v, w, h), _ in facade_elements(f):
         x0 = (fx0 + u / f["w"] * (fx1 - fx0)) * iw
         x1 = (fx0 + (u + w) / f["w"] * (fx1 - fx0)) * iw
@@ -204,6 +217,78 @@ def overlay(fid, pred_spec):
     out = os.path.join(WORK, fid + ".overlay.jpg")
     im.save(out, quality=85)
     return out
+
+
+def _box_iou(a, b):
+    ix = max(0.0, min(a[2], b[2]) - max(a[0], b[0]))
+    iy = max(0.0, min(a[3], b[3]) - max(a[1], b[1]))
+    inter = ix * iy
+    union = (a[2] - a[0]) * (a[3] - a[1]) + (b[2] - b[0]) * (b[3] - b[1]) - inter
+    return inter / union if union > 0 else 0.0
+
+
+def errors(fid, pred_spec, match=0.3):
+    """Object-level error analysis of a px reading against the annotation, in pixels of ID.jpg.
+
+    Every annotated object is matched to the predicted box of the same class it overlaps most
+    (IoU >= match, each prediction used once). Reports per class: annotated, predicted, matched,
+    missed (annotated, no match; with their boxes), invented (predicted, no match), the mean IoU of
+    the matches and the median offsets of predicted against annotated edges, as fractions of the
+    annotated width and height (left, top, right, bottom; positive = predicted edge further
+    right / lower). Wrong-class confusions are listed when a missed object overlaps a predicted
+    box of another class."""
+    from PIL import Image
+    with Image.open(os.path.join(WORK, fid + ".jpg")) as im:
+        W, H = im.size
+    _, objs = read_annotation(fid)
+    gt = [(k, [x0 * W, y0 * H, x1 * W, y1 * H]) for k, x0, y0, x1, y1 in objs]
+    pred = [(k, [float(v) for v in b]) for k, b in px_boxes(pred_spec)]
+    used = set()
+    report = {}
+    for cls in CLASSES:
+        g = [b for k, b in gt if k == cls]
+        p = [(i, b) for i, (k, b) in enumerate(pred) if k == cls]
+        if not g and not p:
+            continue
+        ious, offs, missed = [], [], []
+        for b in sorted(g, key=lambda b: -(b[2] - b[0]) * (b[3] - b[1])):
+            best = max(((_box_iou(b, q), i, q) for i, q in p if i not in used), default=(0, None, None))
+            if best[0] >= match:
+                used.add(best[1])
+                ious.append(best[0])
+                q = best[2]
+                gw, gh = b[2] - b[0], b[3] - b[1]
+                offs.append(((q[0] - b[0]) / gw, (q[1] - b[1]) / gh, (q[2] - b[2]) / gw, (q[3] - b[3]) / gh))
+            else:
+                conf = [pred[i][0] for i in range(len(pred)) if pred[i][0] != cls and _box_iou(b, pred[i][1]) >= match]
+                missed.append([round(v) for v in b] + ([conf[0]] if conf else []))
+        invented = [[round(v) for v in q] for i, q in p if i not in used]
+        med = lambda xs: round(statistics.median(xs), 2) if xs else None
+        report[cls] = {"gt": len(g), "pred": len(p), "matched": len(ious),
+                       "iou": round(sum(ious) / len(ious), 2) if ious else None,
+                       "offset_ltrb": [med([o[j] for o in offs]) for j in range(4)] if offs else None,
+                       "missed": missed[:8], "invented": invented[:8]}
+    return report
+
+
+def crop(fid, box, size=768):
+    """Crops the original photo around box (pixels of the prepped ID.jpg) and enlarges it to size.
+    Returns (path, scale): a pixel (xc, yc) of the crop is (x0 + xc / scale, y0 + yc / scale)
+    in ID.jpg, the frame every px box is read in."""
+    from PIL import Image
+    with Image.open(os.path.join(WORK, fid + ".jpg")) as small:
+        sw, sh = small.size
+    x0, y0, x1, y1 = [float(v) for v in box]
+    if not (0 <= x0 < x1 <= sw and 0 <= y0 < y1 <= sh):
+        raise SystemExit("crop box must lie inside the %dx%d photo" % (sw, sh))
+    with Image.open(_paths(fid) + ".jpg") as im:
+        k = im.size[0] / float(sw)            # original pixels per prepped pixel
+        part = im.convert("RGB").crop((int(x0 * k), int(y0 * k), int(x1 * k), int(y1 * k)))
+        scale = min(size / (x1 - x0), size / (y1 - y0))
+        part = part.resize((max(1, int((x1 - x0) * scale)), max(1, int((y1 - y0) * scale))), Image.LANCZOS)
+        out = os.path.join(WORK, fid + ".crop.jpg")
+        part.save(out, quality=88)
+    return out, scale
 
 
 def all_ids():
@@ -240,6 +325,15 @@ def main(argv):
         print(json.dumps(score_px(arg, pred) if has_px else score(ground_truth(arg), pred)))
     elif cmd == "overlay" and len(argv) > 3:
         print(overlay(arg, _load(argv[3])))
+    elif cmd == "errors" and len(argv) > 3:
+        for k, v in errors(arg, _load(argv[3])).items():
+            print(k, json.dumps(v))
+    elif cmd == "crop" and len(argv) > 6:
+        if not ID_RE.match(arg):
+            raise SystemExit("bad id")
+        path, scale = crop(arg, argv[3:7])
+        x0, y0 = float(argv[3]), float(argv[4])
+        print("%s  ID.jpg x = %g + xc / %.4g, y = %g + yc / %.4g" % (path, x0, scale, y0, scale))
     elif cmd == "sample":
         print(" ".join(sample(int(arg))))
     else:
