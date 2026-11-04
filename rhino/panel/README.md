@@ -7,7 +7,9 @@ A small chat panel inside Rhino 8, docked under the Layers panel. It sends your 
 | a Claude plan | `claude` (Claude Code) | `claude`, then `/login` |
 | a ChatGPT plan | `codex` (Codex) | `codex login` |
 
-The panel passes this plugin's Rhino MCP server (`scripts/launch-router.mjs`) to the tool, so it can read and change the open model: `build_model`, `run_python`, `get_context` and the rest. It is told not to request viewport images unless you ask for one.
+The panel passes this plugin's Rhino MCP server (`scripts/launch-router.mjs --safe`) to the tool, so it can read and change the open model with `build_model`, `check_model`, `get_context`, `list_objects`, selection, camera, layer materials and viewport images. It is told not to request viewport images unless you ask for one.
+
+**Safe mode.** The panel's model never gets `run_python`, `run_csharp`, `run_command`, Grasshopper graphs, `open_doc`/`save_doc`/`close_doc` or slot management. Replies run without a confirmation prompt, so text hidden in a document you open (object names, user text) must not be able to talk the model into running code. `--safe` hides those tools and refuses calls to them in the launcher, which holds for Claude and Codex alike, and Claude is also limited to the same list with `--allowedTools`. `build_model` still works: it reaches `run_python` only as the launcher's fixed script. For scripting, use Claude Code or Codex in a terminal, where each call asks first.
 
 ## Setup
 

@@ -81,3 +81,37 @@ test("the generated script really runs (check path, local Python, no Rhino)", (t
 test("tool descriptions stay compact", () => {
   for (const tool of TOOLS) assert.ok(tool.description.length < 2600, `${tool.name}: ${tool.description.length} chars`);
 });
+
+test("safe mode lists and allows only modelling and read tools", () => {
+  const b = createSpecBridge(rhinoDir, { safe: true });
+  assert.equal(b.fromClient('{"jsonrpc":"2.0","id":1,"method":"tools/list"}').toRouter !== undefined, true);
+  const router = { jsonrpc: "2.0", id: 1, result: { tools: ["run_python", "run_csharp", "run_command", "get_context",
+    "g1_apply_graph", "save_doc", "open_doc", "spawn_slot", "build_model"].map((name) => ({ name, description: "router" })) } };
+  const listed = JSON.parse(b.fromRouter(JSON.stringify(router))).result.tools;
+  assert.deepEqual(listed.map((t) => t.name), ["get_context", "build_model", "check_model"]);
+  assert.notEqual(listed[1].description, "router"); // ours, not a router tool of the same name
+
+  for (const name of ["run_python", "run_csharp", "run_command", "g1_apply_graph", "save_doc", "spawn_slot"]) {
+    const r = b.fromClient(JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/call", params: { name, arguments: {} } }));
+    assert.equal(r.toRouter, undefined, name);
+    assert.match(JSON.parse(r.toClient).result.content[0].text, /disabled in safe mode/);
+  }
+  const ok = b.fromClient(JSON.stringify({ jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: "get_context", arguments: {} } }));
+  assert.ok(ok.toRouter);
+  const built = JSON.parse(b.fromClient(JSON.stringify({ jsonrpc: "2.0", id: 4, method: "tools/call",
+    params: { name: "build_model", arguments: { spec: { parts: [] } } } })).toRouter);
+  assert.equal(built.params.name, "run_python"); // our fixed script still runs
+});
+
+test("safe mode cannot be bypassed with escapes, batches or junk", () => {
+  const b = createSpecBridge(rhinoDir, { safe: true });
+  const escaped = '{"jsonrpc":"2.0","id":5,"method":"tools\u002fcall","params":{"name":"run_\u0070ython","arguments":{"script":"x"}}}';
+  const r = b.fromClient(escaped);
+  assert.equal(r.toRouter, undefined);
+  assert.match(JSON.parse(r.toClient).result.content[0].text, /disabled in safe mode/);
+  const batch = JSON.stringify([{ jsonrpc: "2.0", id: 6, method: "tools/call", params: { name: "run_python", arguments: {} } }]);
+  assert.deepEqual(b.fromClient(batch), { toClient: null });
+  assert.deepEqual(b.fromClient("not json"), { toClient: null });
+  // Normal mode keeps passing everything else through untouched.
+  assert.equal(createSpecBridge(rhinoDir).fromClient(batch).toRouter, batch);
+});

@@ -21,8 +21,10 @@ if (!router) {
   process.exit(1);
 }
 
-const raw = process.env.RHINO_MCP_RAW === "1";
-const child = spawn(router, process.argv.slice(2), {
+// --safe (the Rhino panel): only the tools in SAFE_TOOLS, never raw passthrough.
+const safe = process.argv.includes("--safe");
+const raw = !safe && process.env.RHINO_MCP_RAW === "1";
+const child = spawn(router, process.argv.slice(2).filter((a) => a !== "--safe"), {
   stdio: ["pipe", raw ? "inherit" : "pipe", "inherit"],
   windowsHide: true,
 });
@@ -45,7 +47,7 @@ child.stdin.on("error", () => {}); // router gone: its close handler reports it
 
 // build_model / check_model: the bridge rewrites our tool calls into run_python and trims the
 // replies. Raw mode leaves both directions untouched.
-const bridge = raw ? null : createSpecBridge(join(dirname(dirname(fileURLToPath(import.meta.url))), "rhino"));
+const bridge = raw ? null : createSpecBridge(join(dirname(dirname(fileURLToPath(import.meta.url))), "rhino"), { safe });
 if (raw) {
   process.stdin.pipe(child.stdin);
 } else {
@@ -53,6 +55,7 @@ if (raw) {
   const fromClient = (line) => {
     const { toRouter, toClient } = bridge.fromClient(line.replace(/\r$/, ""));
     if (toClient) process.stdout.write(toClient + "\n");
+    else if (toRouter === undefined) return; // dropped in safe mode
     else child.stdin.write(toRouter === line.replace(/\r$/, "") ? line + "\n" : toRouter + "\n");
   };
   process.stdin.setEncoding("utf8");

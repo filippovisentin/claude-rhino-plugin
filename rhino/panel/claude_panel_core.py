@@ -12,6 +12,11 @@ import subprocess
 import threading
 
 SERVER = "rhino"  # MCP server name we hand to the CLI; tools become mcp__rhino__*
+# The only tools the panel's model may use: the launcher's SAFE_TOOLS (scripts/spec-tool.mjs).
+# The launcher runs with --safe and enforces the same list for Codex, which has no per-tool flag.
+PANEL_TOOLS = ("build_model", "check_model", "get_context", "list_objects", "get_selection",
+               "set_selection", "get_viewport_image", "set_camera", "zoom_to_layer", "zoom_to_object",
+               "set_layer_material", "list_slots", "ask_user")
 
 SYSTEM_PROMPT = (
     "You are answering from a small chat panel docked inside Rhino 8. The user sees plain text "
@@ -82,7 +87,9 @@ def available_backends(env=None, which=shutil.which, exists=os.path.isfile):
 def mcp_launcher(repo_root):
     """Command that starts this plugin's Rhino MCP server (the McNeel router wrapper)."""
     node = shutil.which("node") or "node"
-    return [node, os.path.join(repo_root, "scripts", "launch-router.mjs")]
+    # --safe: the panel's model gets only modelling and read tools, never run_python / run_csharp /
+    # run_command, so text inside a document can't talk it into running code.
+    return [node, os.path.join(repo_root, "scripts", "launch-router.mjs"), "--safe"]
 
 
 def mcp_config_json(repo_root):
@@ -115,7 +122,7 @@ def build_command(backend, exe, repo_root, files, session_id=None, model=None):
             exe, "-p",
             "--output-format", "stream-json", "--verbose",
             "--mcp-config", files["mcp_config"], "--strict-mcp-config",
-            "--allowedTools", "mcp__" + SERVER,
+            "--allowedTools", ",".join("mcp__%s__%s" % (SERVER, t) for t in PANEL_TOOLS),
             "--append-system-prompt-file", files["system_prompt"],
         ]
         if model:

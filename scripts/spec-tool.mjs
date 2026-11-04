@@ -8,14 +8,17 @@
 export const MAX_SPEC_BYTES = 1_000_000;
 const SLOT_RE = /^[A-Za-z0-9_.-]{1,64}$/;
 
-const SPEC_DOC = `JSON spec -> Rhino solids. {"units":"mm|cm|m","layer":"Name","clear":true,"parts":[...]}. clear:true replaces the layer's previous build: rebuild the whole spec when iterating. Everything lands on sublayers of "rhinospec".
-Every part: type, name, at:[x,y,z], rot (deg about Z through at), tilt:[deg about x, deg about y] (before rot), color "#rrggbb", cut:[parts], group (its own sublayer: always name components). "lang":"it" gives Italian layer names; facades and buildings split into per-category sublayers themselves.
+const SPEC_DOC = `JSON spec -> Rhino solids. {"units":"mm|cm|m","layer":"Name","clear":true,"parts":[...]}. clear:true replaces the layer's previous build (rebuild the whole spec when iterating).
+Every part: type, name, at:[x,y,z], rot (deg about Z through at), tilt:[deg about x, deg about y] (before rot), color "#rrggbb", cut:[parts], group (own sublayer: always name components). "lang":"it": Italian layer names.
 Primitives: box size:[x,y,z] (corner at at) | cyl r,h | cone r,h,r2 | sphere r | torus R,r | extrude pts:[[x,y]..],h | prism pts:[[x,z]..],len (profile in XZ, along +y) | revolve profile:[[r,z]..] | loft sections:[{pts,z}..] | pipe path:[[x,y,z]..] (relative to at),r | panel size:[w,h],t,holes:[[u,v,w,h]..].
 array: of:part, n:[nx,ny,nz], step:[dx,dy,dz], turn (deg per copy about pivot:[x,y]: spirals, radial).
-building: footprint:[[x,y]..], floors, floor_h, wall_t, slab_t, roof flat|gable|none, roof_h, openings:[{wall,offset,width,height,sill,floor,count,gap}].
+building: footprint:[[x,y]..], floors, floor_h, wall_t, slab_t, roof, roof_h, openings:[{wall,offset,width,height,sill,floor,count,gap}].
+column: order tuscan|doric|ionic|corinthian, h, d (default h/7..h/10), count, spacing, axis x|y (colonnades).
+stair: kind straight (w, tread, climbs +y) | spiral (r, core, step deg), h, rail both|left|right|outer|none.
 facade (elevation from a photo): h (m), px:[x0,y0,x1,y1] facade corners in photo pixels, els:[{k, box:[x0,y0,x1,y1] pixels, grid:[nx,ny,dx,dy] pixel steps or xs:[..],ys:[..] exact column/row starts (tall facades), bars:[v,h], shape, d}], optional depth (builds side/back walls, floors slabs, roof), floors, roof flat|gable|none, roof_h, t, at, rot.
-block (whole building, corner photos): w (x), d (y), h, t, floors, roof, roof_h, at, rot, faces:{front,right,back,left: {px, els} as in facade, w/h/t set by the block}; front along +x at y=0, others counter-clockwise, each read as seen from outside. k: window|door|shop (hole+frame+glass, shape rect|arch|seg), cornice (hood above one window, shape flat|tri|seg), molding (horizontal band, d 0.4-0.8 for a main cornice), sill, pillar, balcony, blind (shutter), deco. One box per framed sash; use grid for every regular row/column; hidden windows in a regular rhythm are still there.
-Result: one line {"ok":true,"added":n,"bbox":..} plus "floating" when parts touch neither ground nor another part (fix them), or {"ok":false,"error":"path: reason"}: fix that path and rebuild.`;
+style classic (ornate pre-1940: surrounds, profiles, balustrades, pilasters) | plain (default). sur (surround m), rail balustrade|iron|solid, deco shape console|oval|panel; k rustic (rusticated base), quoin (corner stones).
+block (whole building, corner photos): w (x), d (y), h, t, style, floors, roof flat|gable|hip|mansard|none, roof_h, dormers (per long slope), chimneys, at, rot, faces:{front,right,back,left: {px, els} as in facade, w/h/t set by the block}; front along +x at y=0, others counter-clockwise, each read as seen from outside. k: window|door|shop (shape rect|arch|seg), cornice (window crown, shape flat|tri|seg), molding (band; main cornice d 0.6-1.2), sill (with apron), pillar, balcony, blind, deco. One box per framed sash; use grid for every regular row/column; hidden windows in a regular rhythm are still there.
+Result: {"ok":true,"added":n,"bbox":..}, plus "floating" parts to fix, or {"ok":false,"error":"path: reason"}.`;
 
 export const TOOLS = [
   {
@@ -44,6 +47,17 @@ export const TOOLS = [
   },
 ];
 const OUR_TOOLS = new Set(TOOLS.map((t) => t.name));
+
+// Safe mode (launch-router --safe, used by the Rhino panel): only these tools are listed or
+// callable. Everything that runs code or touches files is left out: run_python, run_csharp,
+// run_command (Rhino commands can run scripts), Grasshopper graphs (script components),
+// open/save/close_doc and slot management. build_model still reaches run_python, but only as
+// the fixed script this module writes.
+export const SAFE_TOOLS = new Set([
+  "build_model", "check_model", "get_context", "list_objects", "get_selection", "set_selection",
+  "get_viewport_image", "set_camera", "zoom_to_layer", "zoom_to_object", "set_layer_material",
+  "list_slots", "ask_user",
+]);
 
 const b64 = (s) => Buffer.from(s, "utf8").toString("base64");
 
@@ -90,19 +104,26 @@ export function extractSummary(result) {
   return null;
 }
 
-export function createSpecBridge(rhinoDir) {
+export function createSpecBridge(rhinoDir, { safe = false } = {}) {
   const pending = new Map(); // request id -> "list" | "call"
   const key = (id) => JSON.stringify(id);
 
   // Returns { toRouter, toClient }: the (possibly rewritten) line for the router, or an
-  // immediate error reply for the client.
+  // immediate error reply for the client (toClient null with no toRouter: the line is dropped).
   function fromClient(line) {
-    if (!line.includes('"tools/')) return { toRouter: line };
+    // Safe mode parses every line, so escaped method names or batches can't slip past.
+    if (!safe && !line.includes('"tools/')) return { toRouter: line };
     let msg;
-    try { msg = JSON.parse(line); } catch { return { toRouter: line }; }
+    try { msg = JSON.parse(line); } catch { return safe ? { toClient: null } : { toRouter: line }; }
+    if (safe && (msg === null || typeof msg !== "object" || Array.isArray(msg))) {
+      return { toClient: null };
+    }
     if (msg?.method === "tools/list" && msg.id !== undefined) {
       pending.set(key(msg.id), "list");
       return { toRouter: line };
+    }
+    if (safe && msg?.method === "tools/call" && !SAFE_TOOLS.has(msg.params?.name)) {
+      return { toClient: errorResult(msg.id ?? null, "tool disabled in safe mode: " + String(msg.params?.name).slice(0, 64)) };
     }
     if (msg?.method !== "tools/call" || !OUR_TOOLS.has(msg.params?.name)) return { toRouter: line };
     const args = msg.params.arguments ?? {};
@@ -130,6 +151,7 @@ export function createSpecBridge(rhinoDir) {
     if (!kind) return line;
     pending.delete(key(msg.id));
     if (kind === "list" && Array.isArray(msg.result?.tools)) {
+      if (safe) msg.result.tools = msg.result.tools.filter((t) => SAFE_TOOLS.has(t.name) && !OUR_TOOLS.has(t.name));
       const names = new Set(msg.result.tools.map((t) => t.name));
       msg.result.tools.push(...TOOLS.filter((t) => !names.has(t.name)));
       return JSON.stringify(msg);

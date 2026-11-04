@@ -49,7 +49,11 @@ class Commands(unittest.TestCase):
         self.assertIn("stream-json", argv)
         self.assertEqual(argv[argv.index("--mcp-config") + 1], FILES["mcp_config"])
         self.assertIn("--strict-mcp-config", argv)
-        self.assertEqual(argv[argv.index("--allowedTools") + 1], "mcp__rhino")
+        allowed = argv[argv.index("--allowedTools") + 1].split(",")
+        self.assertIn("mcp__rhino__build_model", allowed)
+        for tool in ("run_python", "run_csharp", "run_command", "g1_apply_graph", "save_doc"):
+            self.assertNotIn("mcp__rhino__" + tool, allowed)
+        self.assertNotIn("mcp__rhino", allowed)   # never the whole server
         self.assertNotIn("--resume", argv)
         resumed = core.build_command("claude", "claude.exe", REPO, FILES, session_id="abc", model="sonnet")
         self.assertEqual(resumed[resumed.index("--resume") + 1], "abc")
@@ -60,7 +64,14 @@ class Commands(unittest.TestCase):
         self.assertEqual(argv[:2], ["codex.exe", "exec"])
         self.assertEqual(argv[-1], "-")
         self.assertIn("--json", argv)
-        self.assertTrue(any(a.startswith("mcp_servers.rhino.args=[") and "launch-router.mjs" in a for a in argv))
+        self.assertTrue(any(a.startswith("mcp_servers.rhino.args=[") and "launch-router.mjs" in a
+                            and '"--safe"' in a for a in argv))
+
+    def test_panel_tools_match_the_launcher_safe_list(self):
+        import re
+        with open(os.path.join(REPO, "scripts", "spec-tool.mjs"), encoding="utf-8") as f:
+            block = re.search(r"SAFE_TOOLS = new Set\(\[(.*?)\]\)", f.read(), re.S).group(1)
+        self.assertEqual(set(re.findall(r'"([a-z_0-9]+)"', block)), set(core.PANEL_TOOLS))
         resumed = core.build_command("codex", "codex.exe", REPO, FILES, session_id="t1")
         self.assertEqual(resumed[2:4], ["resume", "t1"])
 
