@@ -2,8 +2,12 @@
 // Codex / ChatGPT, Cursor) can model with a JSON spec instead of Python:
 //   build_model  validates a rhinospec spec and builds it in Rhino
 //   check_model  validates only and reports parts and floating pieces
-// A call is rewritten into the router's own run_python call. The spec and the plugin path travel
+//   detect_facade  (when a trained detector is installed) runs it locally on a photo, see
+//                  facade-detector.mjs; it never reaches the router.
+// A build/check call is rewritten into the router's own run_python call. The spec and the plugin path travel
 // base64-encoded inside a fixed script, so nothing the model writes can become Python code.
+
+import { DETECT_TOOL, checkConf, checkImage, runDetector } from "./facade-detector.mjs";
 
 export const MAX_SPEC_BYTES = 1_000_000;
 const SLOT_RE = /^[A-Za-z0-9_.-]{1,64}$/;
@@ -56,7 +60,7 @@ const OUR_TOOLS = new Set(TOOLS.map((t) => t.name));
 export const SAFE_TOOLS = new Set([
   "build_model", "check_model", "get_context", "list_objects", "get_selection", "set_selection",
   "get_viewport_image", "set_camera", "zoom_to_layer", "zoom_to_object", "set_layer_material",
-  "list_slots", "ask_user",
+  "list_slots", "ask_user", "detect_facade",
 ]);
 
 const b64 = (s) => Buffer.from(s, "utf8").toString("base64");
@@ -104,12 +108,17 @@ export function extractSummary(result) {
   return null;
 }
 
-export function createSpecBridge(rhinoDir, { safe = false } = {}) {
+const okResult = (id, text) => JSON.stringify({ jsonrpc: "2.0", id, result: { content: [{ type: "text", text }] } });
+
+// detector: from findDetector(), or null to leave detect_facade out. run: injectable for tests.
+export function createSpecBridge(rhinoDir, { safe = false, detector = null, run } = {}) {
+  const extra = detector ? [DETECT_TOOL] : [];
   const pending = new Map(); // request id -> "list" | "call"
   const key = (id) => JSON.stringify(id);
 
-  // Returns { toRouter, toClient }: the (possibly rewritten) line for the router, or an
-  // immediate error reply for the client (toClient null with no toRouter: the line is dropped).
+  // Returns { toRouter, toClient, local }: the (possibly rewritten) line for the router, an
+  // immediate reply for the client, or a promise of the reply (detect_facade, run here).
+  // toClient null with nothing else: the line is dropped.
   function fromClient(line) {
     // Safe mode parses every line, so escaped method names or batches can't slip past.
     if (!safe && !line.includes('"tools/')) return { toRouter: line };
@@ -124,6 +133,16 @@ export function createSpecBridge(rhinoDir, { safe = false } = {}) {
     }
     if (safe && msg?.method === "tools/call" && !SAFE_TOOLS.has(msg.params?.name)) {
       return { toClient: errorResult(msg.id ?? null, "tool disabled in safe mode: " + String(msg.params?.name).slice(0, 64)) };
+    }
+    if (msg?.method === "tools/call" && msg.params?.name === DETECT_TOOL.name) {
+      if (!detector) return { toClient: errorResult(msg.id ?? null, "detect_facade: no trained detector installed") };
+      const a = msg.params.arguments ?? {};
+      let image, conf;
+      try { image = checkImage(a.image); conf = checkConf(a.conf); } catch (e) {
+        return { toClient: errorResult(msg.id ?? null, "detect_facade: " + e.message) };
+      }
+      return { local: runDetector(detector, image, conf, run).then((t) => okResult(msg.id, t),
+        (e) => errorResult(msg.id, "detect_facade: " + e.message)) };
     }
     if (msg?.method !== "tools/call" || !OUR_TOOLS.has(msg.params?.name)) return { toRouter: line };
     const args = msg.params.arguments ?? {};
@@ -153,7 +172,7 @@ export function createSpecBridge(rhinoDir, { safe = false } = {}) {
     if (kind === "list" && Array.isArray(msg.result?.tools)) {
       if (safe) msg.result.tools = msg.result.tools.filter((t) => SAFE_TOOLS.has(t.name) && !OUR_TOOLS.has(t.name));
       const names = new Set(msg.result.tools.map((t) => t.name));
-      msg.result.tools.push(...TOOLS.filter((t) => !names.has(t.name)));
+      msg.result.tools.push(...TOOLS.concat(extra).filter((t) => !names.has(t.name)));
       return JSON.stringify(msg);
     }
     if (kind === "call" && msg.result) {

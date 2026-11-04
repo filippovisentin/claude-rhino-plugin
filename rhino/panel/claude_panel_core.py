@@ -16,7 +16,7 @@ SERVER = "rhino"  # MCP server name we hand to the CLI; tools become mcp__rhino_
 # The launcher runs with --safe and enforces the same list for Codex, which has no per-tool flag.
 PANEL_TOOLS = ("build_model", "check_model", "get_context", "list_objects", "get_selection",
                "set_selection", "get_viewport_image", "set_camera", "zoom_to_layer", "zoom_to_object",
-               "set_layer_material", "list_slots", "ask_user")
+               "set_layer_material", "list_slots", "ask_user", "detect_facade")
 
 SYSTEM_PROMPT = (
     "You are answering from a small chat panel docked inside Rhino 8. The user sees plain text "

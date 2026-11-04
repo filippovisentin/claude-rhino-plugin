@@ -152,6 +152,30 @@ Straightening from four read corners against hznu's ground-truth homography (c_0
 
 `tools/rectify.py PHOTO "x,y x,y x,y x,y" OUT` straightens a facade photographed at an angle from its four corners (top-left, top-right, bottom-right, bottom-left), so ordinary street photos can be read like elevations.
 
+### Local facade detector (optional)
+
+A YOLO11s detector trained on your own machine reads facade elements in a few milliseconds and hands Claude a draft to correct (`detect_facade` tool). It is offered only when a Python with `ultralytics` and trained weights exist (by default `data/venv-det` and `data/det-runs/all11s/weights/best.pt`, or `RHINO_FACADE_PYTHON` and `RHINO_FACADE_WEIGHTS`). Nothing is downloaded at run time and nothing leaves the machine.
+
+```bash
+python -m venv data/venv-det
+data/venv-det/Scripts/python -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128
+data/venv-det/Scripts/python -m pip install ultralytics
+python tools/facade_yolo.py dataset hznu cfp          # CMP + hznu + CFP -> data/yolo-all
+data/venv-det/Scripts/yolo detect train model=yolo11s.pt data=data/yolo-all/cmp.yaml imgsz=1024 epochs=120 patience=30 batch=8 project=data/det-runs name=all11s
+python tools/facade_report.py report.md cmp11s all11s  # same test photos for every model
+```
+
+The test photos never enter training: the 22 CMP facades Claude read blind, 66 held-out hznu facades and 60 CFP street views. Pixel IoU per element on the 22 CMP facades, and window+door mAP50 on photos of other cities:
+
+| | CMP mean | windows | doors | sills | cornices | hznu (modern) | CFP (street views) |
+|---|---|---|---|---|---|---|---|
+| Claude reading alone | 0.52 | 0.75 | 0.63 | 0.30 | 0.34 | | |
+| detector, CMP only | 0.62 | 0.83 | 0.40 | 0.53 | 0.62 | 0.36 | 0.47 |
+| detector, CMP + hznu | 0.62 | 0.84 | 0.56 | 0.49 | 0.58 | 0.67 | 0.59 |
+| detector, CMP + hznu + CFP | 0.62 | 0.83 | 0.60 | 0.53 | 0.60 | 0.64 | 0.71 |
+
+Draft plus Claude's own doors, shops and pillars: 0.63 on CMP. On four modern hznu photos scored through the whole straighten-and-read chain, openings 0.80 for the detector against 0.60 for Claude's readings. Claude still reads shops and pillars better. Licences: CMP is CC BY-SA, hznu CC BY 4.0, [CFP](https://github.com/wbw520/RTFP) states none, so a model trained with CFP is for personal use; train without `cfp` to get one you may share under CC BY-SA.
+
 Prompt scenarios live in `tools/scenarios/prompts.json` (table, chair, amphora, lamp, bookcase, ring, house, palazzo, spiral stair, straight stair, spiral stair with handrail, classic corner palazzo with mansard, villa with hip roof, Doric portico): each holds the prompt, the spec written for it and the expected size. `python tools/scenarios/run_prompts.py` checks them locally; `run_prompts.rhino(doc)` builds them in Rhino and compares sizes (all fourteen match). Default sizes for prompts that give none are in [docs/dimensions.md](docs/dimensions.md).
 
 ## License
