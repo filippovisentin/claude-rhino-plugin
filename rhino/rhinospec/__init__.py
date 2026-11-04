@@ -33,6 +33,8 @@ def check(spec):
         norm = validate(_parse(spec))
         out = {"ok": True, "parts": len(norm["parts"])}
         out.update(report(norm["parts"], norm["units"]))
+        if norm.get("notes"):
+            out["notes"] = norm["notes"]
         return json.dumps(out)
     except SpecError as e:
         return json.dumps({"ok": False, "error": str(e)})
@@ -52,6 +54,8 @@ def run(spec, doc=None, redraw=True):
         out = build(norm, doc, redraw)
         if out.get("ok"):
             out.update(report(norm["parts"], norm["units"]))
+            if norm.get("notes"):
+                out["notes"] = norm["notes"]
         return json.dumps(out, separators=(",", ":"))
     except Exception as e:  # report, never crash the host script
         return json.dumps({"ok": False, "error": "build: %s: %s" % (type(e).__name__, e)})

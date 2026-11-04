@@ -19,10 +19,10 @@ array: of:part, n:[nx,ny,nz], step:[dx,dy,dz], turn (deg per copy about pivot:[x
 building: footprint:[[x,y]..], floors, floor_h, wall_t, slab_t, roof, roof_h, openings:[{wall,offset,width,height,sill,floor,count,gap}].
 column: order tuscan|doric|ionic|corinthian, h, d (default h/7..h/10), count, spacing, axis x|y (colonnades).
 stair: kind straight (w, tread, climbs +y) | spiral (r, core, step deg), h, rail both|left|right|outer|none.
-facade (elevation from a photo): h (m), px:[x0,y0,x1,y1] facade corners in photo pixels, els:[{k, box:[x0,y0,x1,y1] pixels, grid:[nx,ny,dx,dy] pixel steps or xs:[..],ys:[..] exact column/row starts (tall facades), bars:[v,h], shape, d}], optional depth (builds side/back walls, floors slabs, roof), floors, roof flat|gable|none, roof_h, t, at, rot.
-style classic (ornate pre-1940: surrounds, profiles, balustrades, pilasters) | plain (default). sur (surround m), rail balustrade|iron|solid, deco shape console|oval|panel; k rustic (rusticated base), quoin (corner stones).
-block (whole building, corner photos): w (x), d (y), h, t, style, floors, roof flat|gable|hip|mansard|none, roof_h, dormers (per long slope), chimneys, at, rot, faces:{front,right,back,left: {px, els} as in facade, w/h/t set by the block}; front along +x at y=0, others counter-clockwise, each read as seen from outside. k: window|door|shop (shape rect|arch|seg), cornice (window crown, shape flat|tri|seg), molding (band; main cornice d 0.6-1.2), sill (with apron), pillar, balcony, blind, deco. One box per framed sash; use grid for every regular row/column; hidden windows in a regular rhythm are still there.
-Result: {"ok":true,"added":n,"bbox":..}, plus "floating" parts to fix, or {"ok":false,"error":"path: reason"}.`;
+facade (photo elevation): h (m, eaves), px:[x0,y0,x1,y1] facade corners in photo px, els:[{k, box:[x0,y0,x1,y1] px, grid:[nx,ny,dx,dy] px or xs:[..],ys:[..] starts, bars:[v,h], shape, d}], depth (walls, slabs, roof), floors, roof flat|gable|hip|mansard|none, roof_h, dormers, chimneys (count or x px), palette, t, at, rot. Windows above the eaves become dormers there.
+style classic (pre-1940) | modern (slim dark frames, glass doors) | plain. palette:{wall,trim,frames,glass,shutters,doors,railings,roof,spandrels:"#rrggbb"} from the photo. sur, rail balustrade|iron|solid|glass, deco shape console|oval|panel.
+block (corner photos): w (x), d (y), h, t, style, palette, floors, roof, roof_h, dormers, chimneys, at, rot, faces:{front,right,back,left:{px,els}}; front along +x at y=0, others counter-clockwise, read from outside. k: window (shape rect|arch|seg|round; box = opening) | door | shop, arcade (open portico arch, d recess; doors inside go on its back wall), cornice (shape flat|tri|seg), pediment (above the eaves, contents kept), molding (main cornice d 0.6-1.2), sill, pillar (shape round), balcony, blind, deco, spandrel, rustic, quoin. Grid regular rows.
+Result: {"ok":true,"added":n,"bbox":..}, plus "floating" parts and "notes" to fix, or {"ok":false,"error":"path: reason"}.`;
 
 export const TOOLS = [
   {
@@ -73,8 +73,8 @@ export function pythonScript(rhinoDir, specText, fn) {
     "import sys, base64, importlib",
     `p = base64.b64decode("${b64(rhinoDir)}").decode("utf-8")`,
     "p in sys.path or sys.path.insert(0, p)",
-    "import rhinospec, rhinospec.spec, rhinospec.plan, rhinospec.checks",
-    "mods = [rhinospec.spec, rhinospec.plan, rhinospec.checks]",
+    "import rhinospec, rhinospec.naming, rhinospec.spec, rhinospec.plan, rhinospec.checks",
+    "mods = [rhinospec.naming, rhinospec.spec, rhinospec.plan, rhinospec.checks]",
     fn === "run" ? "import rhinospec.build; mods.append(rhinospec.build)" : "",
     "for m in mods + [rhinospec]: importlib.reload(m)  # picks up plugin updates without restarting Rhino",
     `s = base64.b64decode("${b64(specText)}").decode("utf-8")`,

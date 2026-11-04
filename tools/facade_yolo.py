@@ -207,7 +207,8 @@ def detect(fid, weights, conf=0.25):
 
 REVIEW = ("Detector draft in this image's pixels. Reliable: window, sill, cornice, molding, balcony, "
           "blind, deco. Check yourself: door, shop, pillar (often missed or wrong), set h and px "
-          "(the facade's own corners; the draft spans the whole image), merge duplicates, add rustic/quoin.")
+          "(the facade's own corners; the draft spans the whole image), merge duplicates, add rustic/quoin. "
+          "palette: colours read off the photo (median, exposure-corrected); check it before passing it on.")
 
 
 def detect_image(path, weights, conf=0.25):
@@ -218,9 +219,73 @@ def detect_image(path, weights, conf=0.25):
     h, w = r.orig_shape
     dets = [(r.names[int(c)], float(p), *map(float, b))
             for c, p, b in zip(r.boxes.cls.tolist(), r.boxes.conf.tolist(), r.boxes.xyxy.tolist())]
-    els = detections_to_spec(dets, w, h, "draft", conf)["parts"][0]["els"]
+    from facade_regular import dedupe
+    els = detections_to_spec(dedupe(dets), w, h, "draft", conf)["parts"][0]["els"]
     els.sort(key=lambda e: (NAMES.index(e["k"]), e["box"][1] // 20, e["box"][0]))
-    return {"img": [w, h], "els": els, "review": REVIEW}
+    out = {"img": [w, h], "els": els, "review": REVIEW}
+    pal = sample_palette(path, els)
+    if pal:
+        out["palette"] = pal
+    return out
+
+
+PALETTE_FROM = {"glass": ("window",), "shutters": ("blind",), "doors": ("door",),
+                "trim": ("molding", "cornice", "sill", "pillar")}
+
+
+def dominant(px, step=24):
+    """The commonest colour: pixels binned on a coarse RGB grid, the fullest bin averaged. The
+    wall is the largest even surface, so this ignores roof tiles, shadows and sky at the edges."""
+    import numpy as np
+    q = (px // step).astype(np.int32)
+    keys = q[:, 0] * 10000 + q[:, 1] * 100 + q[:, 2]
+    vals, counts = np.unique(keys, return_counts=True)
+    best = px[keys == vals[counts.argmax()]]
+    return "#%02x%02x%02x" % tuple(int(x) for x in best.mean(axis=0))
+
+
+def sample_palette(path, els):
+    """Median colours read off the photo: the wall from the facade area outside every box, the
+    rest from the middle half of their boxes. Keys follow the spec's palette."""
+    import numpy as np
+    from PIL import Image
+    with Image.open(path) as im:
+        a = np.asarray(im.convert("RGB"))
+    hgt, wid = a.shape[:2]
+    hexc = lambda px: "#%02x%02x%02x" % tuple(int(x) for x in np.median(px, axis=0))
+    out = {}
+    if els:
+        x0 = max(0, min(e["box"][0] for e in els)); x1 = min(wid, max(e["box"][2] for e in els))
+        y0 = max(0, min(e["box"][1] for e in els)); y1 = min(hgt, max(e["box"][3] for e in els))
+        mask = np.zeros((hgt, wid), bool)
+        mask[y0:y1, x0:x1] = True
+        for e in els:
+            bx0, by0, bx1, by1 = e["box"]
+            mask[by0:by1, bx0:bx1] = False
+        if mask.sum() > 500:
+            out["wall"] = dominant(a[mask])
+    for key, ks in PALETTE_FROM.items():
+        px = []
+        for e in els:
+            if e["k"] in ks:
+                bx0, by0, bx1, by1 = e["box"]
+                qw, qh = (bx1 - bx0) // 4, (by1 - by0) // 4
+                px.append(a[by0 + qh:by1 - qh, bx0 + qw:bx1 - qw].reshape(-1, 3))
+        px = np.concatenate(px) if px else np.zeros((0, 3))
+        if len(px) > 50:
+            out[key] = hexc(px)
+    return _expose(out)
+
+
+def _expose(pal, target=0.78, most=1.6):
+    """Overcast photos and Rhino's shading both darken: when the wall reads darker than target
+    luminance, every colour is brightened by the same factor (at most most), keeping their ratios."""
+    if "wall" not in pal:
+        return pal
+    rgb = lambda c: [int(c[i:i + 2], 16) for i in (1, 3, 5)]
+    lum = sum(w * v for w, v in zip((0.2126, 0.7152, 0.0722), rgb(pal["wall"]))) / 255.0
+    k = min(most, target / lum) if 0 < lum < target else 1.0
+    return dict((key, "#%02x%02x%02x" % tuple(min(255, int(v * k)) for v in rgb(c))) for key, c in pal.items())
 
 
 def compare(weights, conf=0.25):

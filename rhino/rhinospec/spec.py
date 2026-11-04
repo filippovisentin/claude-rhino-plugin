@@ -28,12 +28,12 @@ PRIMITIVES = ("box", "cyl", "cone", "sphere", "torus", "extrude", "prism", "revo
 COMPOSITES = ("array", "building", "facade", "block", "stair", "column")
 # Classical orders: column height in lower diameters (Vignola).
 ORDERS = {"tuscan": 7.0, "doric": 8.0, "ionic": 9.0, "corinthian": 10.0}
-FACADE_CLASSES = ("window", "door", "shop", "balcony", "cornice", "molding", "pillar", "sill", "blind", "deco", "rustic", "quoin")
+FACADE_CLASSES = ("window", "door", "shop", "balcony", "cornice", "molding", "pillar", "sill", "blind", "deco", "rustic", "quoin", "spandrel", "pediment", "arcade")
 DECO_SHAPES = ("block", "console", "oval", "panel")
-STYLES = ("plain", "classic")
-RAILS = ("balustrade", "iron", "solid")
+STYLES = ("plain", "classic", "modern")
+RAILS = ("balustrade", "iron", "solid", "glass")
 OPENINGS = ("window", "door", "shop")
-COMMON_KEYS = ("type", "name", "at", "rot", "tilt", "color", "cut", "group", "obj", "cat")
+COMMON_KEYS = ("type", "name", "at", "rot", "tilt", "color", "cut", "group", "obj", "cat", "join")
 
 _KEYS = {
     "box": ("size",),
@@ -49,10 +49,10 @@ _KEYS = {
     "panel": ("size", "t", "holes"),
     "array": ("of", "n", "step"),
     "building": ("footprint", "floors", "floor_h", "wall_t", "slab_t", "openings", "roof", "roof_h"),
-    "facade": ("w", "h", "t", "els", "frac", "px", "depth", "floors", "roof", "roof_h", "style"),
+    "facade": ("w", "h", "t", "els", "frac", "px", "depth", "floors", "roof", "roof_h", "style", "dormers", "chimneys", "palette"),
     "column": ("order", "h", "d", "count", "spacing", "axis"),
     "stair": ("kind", "h", "w", "r", "core", "tread", "step", "rail"),
-    "block": ("w", "d", "h", "t", "floors", "roof", "roof_h", "faces", "style", "dormers", "chimneys"),
+    "block": ("w", "d", "h", "t", "floors", "roof", "roof_h", "faces", "style", "dormers", "chimneys", "palette"),
 }
 
 FACES = ("front", "right", "back", "left")
@@ -138,7 +138,7 @@ def _common(part, path, allow_cut=True):
         if not isinstance(tilt, list) or len(tilt) != 2:
             _fail(path + ".tilt", "expected [degrees about x, degrees about y]")
         out["tilt"] = [_num(tilt[0], path + ".tilt[0]", -360, 360), _num(tilt[1], path + ".tilt[1]", -360, 360)]
-    for key in ("group", "obj"):   # sublayers under the spec layer
+    for key in ("group", "obj", "join"):   # sublayers; join: parts sharing it (and a layer) become one solid
         if key in part:
             if not isinstance(part[key], str) or not NAME_RE.match(part[key]):
                 _fail("%s.%s" % (path, key), "1-64 chars of letters, digits, space, _ . -")
@@ -229,7 +229,7 @@ def _primitive(part, path, allow_cut=True):
         for i, h in enumerate(holes):
             hp = "%s.holes[%d]" % (path, i)
             if isinstance(h, list) and len(h) == 5:
-                hole = _vec(h[:4], hp, 4) + [_int(h[4], hp + "[4]", 0, 2)]   # 0 rect, 1 arch, 2 seg
+                hole = _vec(h[:4], hp, 4) + [_int(h[4], hp + "[4]", 0, 3)]   # 0 rect, 1 arch, 2 seg, 3 round
             else:
                 hole = _vec(h, hp, 4)
             out["holes"].append(hole)
@@ -386,6 +386,8 @@ def _facade(part, path, m=1.0):
                 _fail("%s.%s" % (path, key), "invalid %s" % key)
             f[key] = part[key].lower() if key == "color" else part[key]
     f["depth"] = _num(part.get("depth", 0), path + ".depth", 0, 1000 * m)
+    if "palette" in part:
+        f["palette"] = _palette(part["palette"], path + ".palette")
     if f["t"] < 0.05 * m:
         _fail(path + ".t", "walls thinner than 0.05 leave no room for window recesses")
     if f["depth"] and f["depth"] <= 2 * f["t"]:
@@ -394,15 +396,29 @@ def _facade(part, path, m=1.0):
         _fail(path + ".w", "with depth, the facade must be wider than two walls")
     f["floors"] = _int(part.get("floors", 1), path + ".floors", 1, MAX_FLOORS)
     f["roof"] = part.get("roof", "flat")
-    if f["roof"] not in ("flat", "gable", "none"):
-        _fail(path + ".roof", "expected flat, gable or none")
+    if f["roof"] not in ("flat", "gable", "hip", "mansard", "none"):
+        _fail(path + ".roof", "expected flat, gable, hip, mansard or none")
     f["roof_h"] = _num(part.get("roof_h", 3.0 * m), path + ".roof_h", positive=True)
+    f["dormers"] = _int(part.get("dormers", 0), path + ".dormers", 0, 40)
+
     f["style"] = part.get("style", "plain")
     if f["style"] not in STYLES:
-        _fail(path + ".style", "expected plain or classic")
+        _fail(path + ".style", "expected plain, classic or modern")
     frac = part.get("frac", False)
     if not isinstance(frac, bool):
         _fail(path + ".frac", "expected true or false")
+    # chimneys: a count, or x positions in the units of the boxes (photo pixels with px)
+    ch = part.get("chimneys", 0)
+    if isinstance(ch, list):
+        if not 1 <= len(ch) <= 20:
+            _fail(path + ".chimneys", "expected 1..20 positions")
+        xs = [_num(x, "%s.chimneys[%d]" % (path, i)) for i, x in enumerate(ch)]
+        conv = ((lambda x: (x - px[0]) * f["w"] / (px[2] - px[0])) if px is not None
+                else (lambda x: x * f["w"]) if frac else (lambda x: x))
+        f["chimney_at"] = [conv(x) for x in xs]
+        f["chimneys"] = len(xs)
+    else:
+        f["chimneys"] = _int(ch, path + ".chimneys", 0, 20)
     els = part.get("els")
     if not isinstance(els, list) or not els:
         _fail(path + ".els", "expected a non-empty list of elements")
@@ -460,8 +476,8 @@ def _facade(part, path, m=1.0):
         if "d" in e:
             el["d"] = _num(e["d"], ep + ".d", 0, 10 * m)
         if "shape" in e:
-            allowed = (("rect", "arch", "seg") if el["k"] in OPENINGS else ("flat", "tri", "seg") if el["k"] == "cornice"
-                       else DECO_SHAPES if el["k"] == "deco" else ())
+            allowed = (("rect", "arch", "seg", "round") if el["k"] == "window" else ("rect", "arch", "seg") if el["k"] in OPENINGS + ("arcade",) else ("flat", "tri", "seg") if el["k"] == "cornice"
+                       else DECO_SHAPES if el["k"] == "deco" else ("square", "round") if el["k"] == "pillar" else ())
             if e["shape"] not in allowed:
                 _fail(ep + ".shape", "expected one of %s" % (", ".join(allowed) or "nothing for %s" % el["k"]))
             el["shape"] = e["shape"]
@@ -481,6 +497,8 @@ def _facade(part, path, m=1.0):
                 _fail(ep + ".bars", "expected [vertical, horizontal]")
             el["bars"] = [_int(bars[0], ep + ".bars[0]", 0, 20), _int(bars[1], ep + ".bars[1]", 0, 20)]
         f["els"].append(el)
+    if (f["roof"] in ("hip", "mansard") or f["dormers"] or f["chimneys"]) and not f["depth"]:
+        _fail(path + ".depth", "a hip or mansard roof, dormers and chimneys need the building's depth")
     return f
 
 
@@ -512,9 +530,11 @@ def _block(part, path, m=1.0):
             b[key] = part[key].lower() if key == "color" else part[key]
     if b["roof"] not in ("flat", "gable", "hip", "mansard", "none"):
         _fail(path + ".roof", "expected flat, gable, hip, mansard or none")
+    if "palette" in part:
+        b["palette"] = _palette(part["palette"], path + ".palette")
     b["style"] = part.get("style", "plain")
     if b["style"] not in STYLES:
-        _fail(path + ".style", "expected plain or classic")
+        _fail(path + ".style", "expected plain, classic or modern")
     if b["t"] < 0.05 * m:
         _fail(path + ".t", "walls thinner than 0.05 leave no room for window recesses")
     if b["w"] <= 2 * b["t"] or b["d"] <= 2 * b["t"]:
@@ -537,6 +557,63 @@ def _block(part, path, m=1.0):
         sub.update({"w": b["w"] if key in ("front", "back") else b["d"], "h": b["h"], "t": b["t"],
                     "style": b["style"]})
         b["faces"][key] = _facade(sub, fp, m)["els"]
+    return b
+
+
+PALETTE_KEYS = ("wall", "trim", "frames", "glass", "shutters", "doors", "railings", "roof", "spandrels")
+
+
+def _palette(pal, path):
+    """Colours read off the photo, by family: {"wall": "#rrggbb", "shutters": ..., ...}."""
+    if not isinstance(pal, dict):
+        _fail(path, "expected an object of colours")
+    out = {}
+    for k, v in pal.items():
+        if k not in PALETTE_KEYS:
+            _fail("%s.%s" % (path, k), "expected one of %s" % ", ".join(PALETTE_KEYS))
+        if not isinstance(v, str) or not COLOR_RE.match(v):
+            _fail("%s.%s" % (path, k), "expected #rrggbb")
+        out[k] = v.lower()
+    return out
+
+
+def _dormer_windows(f):
+    """Windows read wholly above the eaves and outside any pediment: dormers on the roof."""
+    from .plan import _expanded, in_pediment, pediment_boxes
+    peds = pediment_boxes(f)
+    return [(u, w) for el, u, v, w, h in _expanded(f)
+            if el["k"] == "window" and v >= f["h"] - 1e-6 and not in_pediment([u, v, w, h], peds)]
+
+
+def _needs_block(f):
+    roofed = f["roof"] in ("gable", "hip", "mansard")
+    return bool(f["depth"]) and (f["roof"] in ("hip", "mansard") or f["dormers"] > 0 or f["chimneys"] > 0
+                                 or (roofed and bool(_dormer_windows(f))))
+
+
+def _as_block(f):
+    """A facade with depth and a hip/mansard roof, dormers or chimneys: the block of that depth
+    with this facade as its front, so the roof, dormers and chimneys come from plan_block."""
+    b = dict((k, f[k]) for k in ("w", "h", "t", "per_m", "at", "rot", "floors", "roof", "roof_h",
+                                 "dormers", "chimneys", "style"))
+    if "palette" in f:
+        b["palette"] = f["palette"]
+    b["d"] = f["depth"]
+    b["faces"] = {"front": f["els"]}
+    if "chimney_at" in f:
+        b["chimney_at"] = f["chimney_at"]
+    spots = _dormer_windows(f) if f["roof"] in ("gable", "hip", "mansard") else []
+    if spots:
+        # The photo shows where the dormers are: build them there, and leave their windows,
+        # shutters and hoods above the eaves to the roof.
+        from .plan import in_pediment, pediment_boxes
+        peds = pediment_boxes(f)
+        b["dormer_at"] = spots
+        b["faces"]["front"] = [el for el in f["els"] if not (el["box"][1] >= f["h"] - 1e-6 and el["k"] != "pediment"
+                                                             and not in_pediment(el["box"], peds))]
+    for k in ("name", "color"):
+        if k in f:
+            b[k] = f[k]
     return b
 
 
@@ -609,7 +686,7 @@ def validate(spec):
 
     Arrays and buildings are expanded here, so the Rhino side only ever sees primitives.
     """
-    from .plan import plan_block, plan_building, plan_column, plan_facade, plan_stair  # local import: acyclic graph
+    from .plan import dropped_elements, plan_block, plan_building, plan_column, plan_facade, plan_stair  # acyclic graph
 
     if not isinstance(spec, dict):
         _fail("spec", "expected a JSON object")
@@ -632,7 +709,7 @@ def validate(spec):
     if not isinstance(parts_in, list) or not parts_in:
         _fail("spec.parts", "expected a non-empty list")
 
-    parts = []
+    parts, notes = [], []
     for i, p in enumerate(parts_in):
         path = "parts[%d]" % i
         t = p.get("type") if isinstance(p, dict) else None
@@ -641,7 +718,17 @@ def validate(spec):
         elif t == "building":
             parts.extend(plan_building(_building(p, path, PER_M[units])))
         elif t == "facade":
-            parts.extend(plan_facade(_facade(p, path, PER_M[units])))
+            f = _facade(p, path, PER_M[units])
+            if _needs_block(f):
+                b = _as_block(f)
+                parts.extend(plan_block(b))
+                lost = dropped_elements(dict(f, els=b["faces"]["front"]))
+            else:
+                parts.extend(plan_facade(f))
+                lost = dropped_elements(f)
+            if lost:
+                notes.append("%s: %d element(s) outside the facade outline not built (above the eaves: "
+                             "k pediment, or raise px/h)" % (path, lost))
         elif t == "block":
             parts.extend(plan_block(_block(p, path, PER_M[units])))
         elif t == "stair":
@@ -652,4 +739,7 @@ def validate(spec):
             parts.append(_primitive(p, path))
         if len(parts) > MAX_PARTS:
             _fail(path, "model exceeds the %d part limit" % MAX_PARTS)
-    return {"v": VERSION, "units": units, "layer": layer, "clear": clear, "lang": lang, "parts": parts}
+    out = {"v": VERSION, "units": units, "layer": layer, "clear": clear, "lang": lang, "parts": parts}
+    if notes:
+        out["notes"] = notes[:10]
+    return out

@@ -34,8 +34,12 @@ CATEGORIES = {
     "pillars": ("Pillars", "Colonne", "#dcd3c1"),
     "balconies": ("Balconies", "Balconi", "#d6cdbb"),
     "balconies/railings": ("Railings", "Ringhiere", "#3e3e3e"),
+    "balconies/glass": ("Glass", "Vetri", "#c9d6de"),
     "rustication": ("Rustication", "Bugnato", "#d9cfbd"),
     "quoins": ("Quoins", "Cantonali", "#d3c9b5"),
+    "spandrels": ("Spandrels", "Pannelli marcapiano", "#3b4048"),
+    "pediments": ("Pediments", "Timpani", "#d6cdbb"),
+    "arcades": ("Arcades", "Portici", "#e1dacb"),
     "roof/dormers": ("Dormers", "Abbaini", "#8a4b3a"),
     "roof/dormers/glass": ("Glass", "Vetri", "#8fb3cf"),
     "roof/chimneys": ("Chimneys", "Comignoli", "#9a7a66"),
@@ -53,6 +57,7 @@ ELEMENT_CATEGORY = {
     "window": "windows", "door": "doors", "shop": "shopfronts", "cornice": "cornices",
     "molding": "mouldings", "sill": "sills", "pillar": "pillars", "balcony": "balconies",
     "blind": "shutters", "deco": "ornaments", "rustic": "rustication", "quoin": "quoins",
+    "spandrel": "spandrels", "pediment": "pediments", "arcade": "arcades",
 }
 
 
