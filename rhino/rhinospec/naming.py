@@ -42,6 +42,7 @@ CATEGORIES = {
     "arcades": ("Arcades", "Portici", "#e1dacb"),
     "cladding": ("Cladding", "Rivestimenti", "#8f8a82"),
     "downpipes": ("Downpipes", "Pluviali", "#8c8f93"),
+    "finials": ("Finials", "Pinnacoli", "#d6cdbb"),
     "roof/dormers": ("Dormers", "Abbaini", "#8a4b3a"),
     "roof/dormers/glass": ("Glass", "Vetri", "#8fb3cf"),
     "roof/chimneys": ("Chimneys", "Comignoli", "#9a7a66"),
@@ -52,6 +53,7 @@ CATEGORIES = {
     "stairs/steps": ("Steps", "Gradini", "#cfc6b4"),
     "stairs/railings": ("Railings", "Ringhiere", "#3e3e3e"),
     "roof": ("Roof", "Tetto", "#8a4b3a"),
+    "roof/flat": ("Flat roof", "Copertura piana", "#7c7a76"),
 }
 
 # Facade element class -> category of its main part.
@@ -60,7 +62,7 @@ ELEMENT_CATEGORY = {
     "molding": "mouldings", "sill": "sills", "pillar": "pillars", "balcony": "balconies",
     "blind": "shutters", "deco": "ornaments", "rustic": "rustication", "quoin": "quoins",
     "spandrel": "spandrels", "pediment": "pediments", "arcade": "arcades",
-    "clad": "cladding", "pipe": "downpipes",
+    "clad": "cladding", "pipe": "downpipes", "finial": "finials",
 }
 
 

@@ -33,6 +33,26 @@ def close(a, b, tol=1e-6):
     return all(abs(x - y) < tol for x, y in zip(a, b))
 
 
+def connected_groups(ps, tol=1e-3):
+    """How many separate clusters of touching parts (a building should be one): checks.floating
+    only flags parts that touch nothing, so a roof whose two tiers touch each other but not the
+    walls slips through it."""
+    boxes = [bbox(p) for p in ps]
+    group = list(range(len(boxes)))
+
+    def root(i):
+        while group[i] != i:
+            group[i] = group[group[i]]
+            i = group[i]
+        return i
+
+    for i in range(len(boxes)):
+        for j in range(i + 1, len(boxes)):
+            if all(boxes[i][k] <= boxes[j][k + 3] + tol and boxes[j][k] <= boxes[i][k + 3] + tol for k in range(3)):
+                group[root(i)] = root(j)
+    return len(set(root(i) for i in range(len(boxes))))
+
+
 class Block(unittest.TestCase):
     def test_layers_per_face(self):
         paths = set("::".join(layer_path("T", p, "it")) for p in parts(lang="it"))
@@ -42,7 +62,7 @@ class Block(unittest.TestCase):
         self.assertIn("T::angolo::Retro::Muri", paths)
         self.assertIn("T::angolo::Sinistra::Muri", paths)
         self.assertIn("T::angolo::Solai", paths)
-        self.assertIn("T::angolo::Tetto", paths)
+        self.assertIn("T::angolo::Tetto::Copertura piana", paths)   # BLOCK has a flat roof
 
     def test_walls_close_the_footprint(self):
         w = walls(parts())
@@ -140,6 +160,74 @@ class Block(unittest.TestCase):
         out = check({"units": "m", "parts": [BLOCK]})
         self.assertIn('"ok": true', out)
         self.assertNotIn("floating", out)
+
+    def test_floor_slabs_never_cross_a_window(self):
+        # Window rows 2.6-4.2, 5.6-7.2, 8.6-10.2, 11.6-13.2 on the front and a door on the right:
+        # the evenly spaced slabs (tops at 3, 6, 9, 12) would show through the glass.
+        b = dict(BLOCK, faces={"front": {"els": [{"k": "window", "box": [1, 2.6, 1.2, 1.6], "grid": [5, 4, 3.5, 3]}]},
+                               "right": {"els": [{"k": "door", "box": [4, 0, 1.2, 2.4]}]}})
+        for spec_part in (b, dict(b, type="facade", w=20, h=15, depth=12, els=b["faces"]["front"]["els"])):
+            if spec_part["type"] == "facade":
+                spec_part = {k: v for k, v in spec_part.items() if k not in ("faces", "d")}
+            ps = parts(spec_part)
+            slabs = sorted(bbox(p) for p in ps if p.get("cat") == "floors")
+            self.assertEqual(len(slabs), 4, spec_part["type"])
+            glass = [bbox(p) for p in ps if p.get("cat", "").endswith("/glass")]
+            for s in slabs:
+                for g in glass:
+                    self.assertFalse(min(s[5], g[5]) - max(s[2], g[2]) > 1e-6, (spec_part["type"], s, g))
+            tops = [s[5] for s in slabs]
+            self.assertEqual(tops, sorted(tops))
+            for k, t in enumerate(tops, 1):           # still near their storey
+                self.assertLess(abs(t - 3 * k), 1.5 + 1e-9, (spec_part["type"], tops))
+        # A double-height opening no slab can avoid: the slab is cut back behind it (a double-height
+        # space), 1.5 m deep and as wide as the opening, and stays whole elsewhere.
+        tall = [{"k": "shop", "box": [2, 0.5, 4, 6.5], "shape": "arch"}]
+        for spec_part in (dict(BLOCK, floors=5, faces={"front": {"els": tall}}),
+                          {"type": "facade", "name": "angolo", "w": 20, "h": 15, "floors": 5, "depth": 12, "els": tall}):
+            ps = parts(spec_part)
+            crossing = [p for p in ps if p.get("cat") == "floors" and bbox(p)[2] < 7.0 and bbox(p)[5] > 0.5]
+            self.assertTrue(crossing, spec_part["type"])
+            for slab in crossing:
+                self.assertTrue(slab.get("cut"), spec_part["type"])
+                c = bbox(slab["cut"][0])
+                self.assertTrue(c[0] <= 2 and c[3] >= 6, c)             # the opening's width
+                self.assertTrue(c[1] <= 0.4 and c[4] >= 1.5, c)         # from the wall 1.5 m in
+                self.assertTrue(c[2] < bbox(slab)[2] and c[5] > bbox(slab)[5], c)
+            self.assertFalse([p for p in ps if p.get("cat") == "floors" and bbox(p)[2] >= 7.0 and p.get("cut")])
+        # Slabs already clear of the openings stay where they were.
+        clear = dict(BLOCK, faces={"front": {"els": [{"k": "window", "box": [1, 1, 1.2, 1.4], "grid": [5, 5, 3.5, 3]}]}})
+        tops = sorted(bbox(p)[5] for p in parts(clear) if p.get("cat") == "floors")
+        for got, want in zip(tops, [3, 6, 9, 12]):
+            self.assertAlmostEqual(got, want)
+
+    def test_flat_roof_has_its_own_colour(self):
+        # A flat roof is not a tiled one: its slab gets its own layer and a neutral colour, the
+        # palette's roof colour still wins; under a pitched roof the slab stays with the roof.
+        for part in (dict(BLOCK, roof="flat"),
+                     {"type": "facade", "name": "angolo", "w": 20, "h": 15, "depth": 12, "roof": "flat",
+                      "els": [{"k": "window", "box": [1, 1, 1, 1]}]}):
+            ps = parts(part, lang="it")
+            slab = [p for p in ps if p["name"].endswith("roof slab")][0]
+            self.assertEqual(slab["cat"], "roof/flat", part["type"])
+            self.assertEqual(layer_path("T", slab, "it")[-2:], ["Tetto", "Copertura piana"])
+            painted = [p for p in parts(dict(part, palette={"roof": "#445566"})) if p["name"].endswith("roof slab")][0]
+            self.assertEqual(painted["color"], "#445566")
+        pitched = [p for p in parts(dict(BLOCK, roof="gable", roof_h=4)) if p["name"].endswith("roof slab")][0]
+        self.assertEqual(pitched["cat"], "roof")
+
+    def test_every_roof_rests_on_a_slab(self):
+        # The roof (and the dormers and chimneys planned with it) starts 30 cm above the walls:
+        # a slab must fill that gap for every pitched roof, not only flat and gable ones.
+        for roof in ("flat", "gable", "hip", "mansard"):
+            b = dict(BLOCK, roof=roof, roof_h=5, dormers=3, chimneys=2)
+            ps = parts(b)
+            slabs = [bbox(p) for p in ps if p["name"].endswith("roof slab")]
+            self.assertEqual(len(slabs), 1, roof)
+            self.assertTrue(close(slabs[0], [0, 0, 15, 20, 12, 15.3]), (roof, slabs[0]))
+            self.assertEqual(connected_groups(ps), 1, roof)
+            self.assertNotIn("floating", check({"units": "m", "parts": [b]}), roof)
+        self.assertFalse([p for p in parts(dict(BLOCK, roof="none")) if "roof" in p["name"]])
 
     def test_rejects(self):
         bad = [

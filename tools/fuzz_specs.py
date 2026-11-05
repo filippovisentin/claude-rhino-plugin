@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.join(ROOT, "rhino"))
 from rhinospec import SpecError, validate  # noqa: E402
 
 CLASSES = ("window", "door", "shop", "balcony", "cornice", "molding", "pillar", "sill", "blind", "deco", "rustic", "quoin",
-           "spandrel", "pediment", "arcade", "clad", "pipe")
+           "spandrel", "pediment", "arcade", "clad", "pipe", "finial")
 
 
 def rnd_box(r, W, H):
@@ -35,12 +35,16 @@ def facade(r):
         if k in ("window", "door", "shop", "arcade"):
             if r.random() < 0.5:
                 el["shape"] = r.choice(("rect", "arch", "seg") + (("round",) if k == "window" else ()))
-        if k == "pillar" and r.random() < 0.5:
-            el["shape"] = "round"
-        if k == "pediment":
-            el["box"][1] = round(H - r.uniform(0, 1), 3)      # sits on the eaves, rises above them
             if r.random() < 0.5 and k != "arcade":
                 el["bars"] = [r.randint(0, 3), r.randint(0, 3)]
+        if k == "pillar" and r.random() < 0.5:
+            el["shape"] = "round"
+        if k == "finial":
+            el["box"][1] = round(H - r.uniform(-0.3, 1.5), 3)  # on the parapet, or a little off it
+            if r.random() < 0.6:
+                el["shape"] = r.choice(("urn", "ball", "spire"))
+        if k == "pediment":
+            el["box"][1] = round(H - r.uniform(0, 1), 3)      # sits on the eaves, rises above them
         if k == "cornice" and r.random() < 0.6:
             el["shape"] = r.choice(("flat", "tri", "seg"))
         if r.random() < 0.3:

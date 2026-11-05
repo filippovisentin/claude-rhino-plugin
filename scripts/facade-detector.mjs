@@ -2,7 +2,8 @@
 // tools/facade_yolo.py) on a photo and returns a px facade draft for the model to correct.
 // It is offered only when a Python with ultralytics and trained weights are present:
 //   RHINO_FACADE_PYTHON   python executable (default data/venv-det in this repo)
-//   RHINO_FACADE_WEIGHTS  weights file      (default data/det-runs/all11s/weights/best.pt)
+//   RHINO_FACADE_WEIGHTS  weights file      (default data/det-runs/parts11s/weights/best.pt, the parts
+//                         model with arches, oculi, pediments and finials; else all11s)
 // The image path is the only model input: it must be an existing image file, and it travels as
 // one argv entry to a fixed script (no shell), with a timeout and an output cap.
 import { execFile } from "node:child_process";
@@ -34,7 +35,8 @@ export const DETECT_TOOL = {
 export function findDetector(repoRoot, env = process.env) {
   const python = env.RHINO_FACADE_PYTHON ||
     join(repoRoot, "data", "venv-det", process.platform === "win32" ? "Scripts/python.exe" : "bin/python");
-  const weights = env.RHINO_FACADE_WEIGHTS || join(repoRoot, "data", "det-runs", "all11s", "weights", "best.pt");
+  const run = (name) => join(repoRoot, "data", "det-runs", name, "weights", "best.pt");
+  const weights = env.RHINO_FACADE_WEIGHTS || [run("parts11s"), run("all11s")].find((p) => existsSync(p)) || run("all11s");
   const script = join(repoRoot, "tools", "facade_yolo.py");
   if (![python, weights, script].every((p) => existsSync(p))) return null;
   const cfg = join(repoRoot, "data", "det-runs", "cfg");
