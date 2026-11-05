@@ -59,13 +59,21 @@ def _ccw(pts):
     return pts if a > 0 else list(reversed(pts))
 
 
+def _outward(brep):
+    """A closed brep with its normals pointing out. Extrusions and lofts come out inside-out for
+    some windings, and an inside-out solid turns a boolean difference into a union."""
+    if brep is not None and brep.IsSolid and brep.SolidOrientation == rg.BrepSolidOrientation.Inward:
+        brep.Flip()
+    return brep
+
+
 def _extrude(curve, vec, tol):
     srf = rg.Surface.CreateExtrusion(curve, vec)
     if srf is None:
         return None
     brep = srf.ToBrep()
     capped = brep.CapPlanarHoles(tol)
-    return capped or brep
+    return _outward(capped or brep)
 
 
 def _revolve(profile, tol):
@@ -76,7 +84,7 @@ def _revolve(profile, tol):
     brep = rg.Brep.CreateFromRevSurface(rs, False, False)
     if brep is not None and not brep.IsSolid:
         brep = brep.CapPlanarHoles(tol) or brep
-    return brep
+    return _outward(brep)
 
 
 def _local_brep(p, tol):
@@ -110,7 +118,7 @@ def _local_brep(p, tol):
         lofts = rg.Brep.CreateFromLoft(_net(rg.Curve, curves), rg.Point3d.Unset, rg.Point3d.Unset, rg.LoftType.Normal, False)
         if not lofts:
             return None
-        return lofts[0].CapPlanarHoles(tol) or lofts[0]
+        return _outward(lofts[0].CapPlanarHoles(tol) or lofts[0])
     if t == "panel":
         # One planar face with hole loops, extruded: far faster and sturdier than boolean cuts.
         w, h = p["size"]

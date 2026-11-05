@@ -132,33 +132,33 @@ Still open from this round: a round pillar with `d` larger than its diameter and
 ground stands free in the air (only a reading slip produces it; left as is so porticoes on a podium keep
 working).
 
-## Fourth round: is the 3D what the spec says, and can it be edited?
-
-Round trip on 60 CMP ground-truth facades (annotation -> spec -> planned solids -> elevation -> IoU
-against the annotation, per class): plain and modern reproduce every box (IoU 1.00); classic adds only
-what it means to (window and door surrounds, 15 cm outside the opening). Found and fixed:
-
-- Classic pilasters and round columns were wider than their box (base and capital 6 cm out each side):
-  the read box is now their widest outline, the shaft set in.
-- 40 % of the classic balcony consoles hung over the window or surround below: each console now stops
-  above the opening under it, or goes when less than 8 cm is left (0 % left; 12 of 172 balconies keep
-  none, those across French windows).
-
-Built in Rhino 8 (`tools/solid_audit.py`: 15 real readings and 40 random specs, 12554 objects):
-
-- Arched and round surrounds and oculus frames were rings of short segments; their union came out
-  open and non-manifold (33 objects). Each band is now one prism with the opening cut through it,
-  and arched windows got the frame they lacked.
-- When an element's union failed, its pieces were stored as one object with several shells (76
-  objects). The union is now kept only when it is a closed, manifold solid; otherwise the pieces are
-  separate solids in a group named after the element. Clearing a build also removes its groups.
-- Floor slabs were spread evenly over the height and showed through the windows (126 crossings on
-  cfp_0003 and d_0140): each slab now sits in the nearest band between rows of openings within half a
-  storey, and where none is free (a double-height shop or portico) it stops 1.5 m behind the opening.
-- Result: 0 open, non-manifold, naked-edge or multi-shell objects, no slab seen through glass, no
-  build warning. The same audit on the previous builder finds 58 bad objects and 210 slab hits on four
-  of those readings.
-
+## Fourth round: is the 3D what the spec says, and can it be edited?
+
+Round trip on 60 CMP ground-truth facades (annotation -> spec -> planned solids -> elevation -> IoU
+against the annotation, per class): plain and modern reproduce every box (IoU 1.00); classic adds only
+what it means to (window and door surrounds, 15 cm outside the opening). Found and fixed:
+
+- Classic pilasters and round columns were wider than their box (base and capital 6 cm out each side):
+  the read box is now their widest outline, the shaft set in.
+- 40 % of the classic balcony consoles hung over the window or surround below: each console now stops
+  above the opening under it, or goes when less than 8 cm is left (0 % left; 12 of 172 balconies keep
+  none, those across French windows).
+
+Built in Rhino 8 (`tools/solid_audit.py`: 15 real readings and 40 random specs, 12554 objects):
+
+- Arched and round surrounds and oculus frames were rings of short segments; their union came out
+  open and non-manifold (33 objects). Each band is now one prism with the opening cut through it,
+  and arched windows got the frame they lacked.
+- When an element's union failed, its pieces were stored as one object with several shells (76
+  objects). The union is now kept only when it is a closed, manifold solid; otherwise the pieces are
+  separate solids in a group named after the element. Clearing a build also removes its groups.
+- Floor slabs were spread evenly over the height and showed through the windows (126 crossings on
+  cfp_0003 and d_0140): each slab now sits in the nearest band between rows of openings within half a
+  storey, and where none is free (a double-height shop or portico) it stops 1.5 m behind the opening.
+- Result: 0 open, non-manifold, naked-edge or multi-shell objects, no slab seen through glass, no
+  build warning. The same audit on the previous builder finds 58 bad objects and 210 slab hits on four
+  of those readings.
+
 ## Fifth round: two new photos, read and built
 
 | photo | type |
@@ -200,3 +200,8 @@ no slab seen through glass, no warning; the document is left empty.
 - A deep facade can take a hip or mansard roof, dormers and chimneys (planned as a block).
 - Detector duplicates are removed before the draft (172 -> 155 boxes on b0121, IoU unchanged).
 - Snapping detector boxes to shared rows and columns was measured and rejected (IoU 0.617 -> 0.610).
+- `extrude` and `loft` solids, and `prism`s with a clockwise profile, came out inside out (normals
+  pointing in); used in a `cut`, as the part or as the cutter, the difference turned into a union
+  without a warning. Every extruded, lofted and revolved solid is now turned outward. Checked in
+  Rhino 8: all thirteen primitive types outward, a cut through a clockwise prism removes what it
+  should, and `tools/solid_audit.py` on four real readings (1808 objects) finds nothing.
