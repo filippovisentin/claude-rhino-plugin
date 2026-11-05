@@ -76,6 +76,7 @@ Output is one line: `{"ok":true,"layer":"rhinospec::X","added":12,"removed":0,"b
 | spandrel | dark panel between ribbon windows (modern facades) | 0.03 |
 | clad | a zone of another material on the wall (stone base under brick, timber ground floor, brick band): a flat layer with the openings cut through; colour from `palette.clad` or `color` | 0.03 |
 | pipe | downpipe (a gutter when wider than tall) on brackets, standing off the wall by `d` | 0.04 |
+| finial | finial or urn on a parapet, gable or cornice: box = pedestal foot to tip; `shape` `urn` (default), `ball` or `spire`; on the wall's top edge it rises above the eaves, one floating above the wall is dropped and noted | - |
 
 `deco` takes `shape`: `console` (bracket under a sill, hood or cornice: deep at the top, tapering down; read each bracket as one box, `xs` for pairs), `oval` (cartouche, medallion), `panel` (framed sunk panel, e.g. under windows), `block` (default). Built automatically from the boxes you read: doors wider than 1.3 m get two panelled leaves, taller than 2.7 m (or arched) a glazed fanlight; shop fronts taller than 2.4 m keep their top fifth as a sign fascia; `blind` shutters get louvres (one profile per shutter); in `classic`, arched surrounds follow the arch and triangular pediments get raking cornices over a recessed tympanum. A `block` takes `chimneys` (stacks on the ridge). A `block` with a gable, hip or mansard roof takes `dormers`: how many stand on each long slope (front and back), on the window axes when the count matches the bays.
 

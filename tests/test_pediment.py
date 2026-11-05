@@ -52,6 +52,65 @@ class Pediment(unittest.TestCase):
         self.assertTrue(out["ok"])
         self.assertIn("1 element(s) outside", out["notes"][0])
 
+    def test_deep_oculus_still_sits_on_the_tympanum(self):
+        # A window's d is its recess, capped by the wall: lifting it onto the tympanum must use the
+        # same cap, or a deep one floats in front of the pediment.
+        for d in (0.12, 0.3, 1.0):
+            ps = parts([{"k": "pediment", "box": [6, 11.5, 8, 3]}, {"k": "window", "box": [9.5, 12.2, 1, 1], "d": d}])
+            tymp = min(bbox(p)[1] for p in of(ps, "tympanum"))
+            win = [bbox(p) for p in of(ps, "window")]
+            self.assertGreaterEqual(max(b[4] for b in win), tymp - 1e-6, d)    # touching or set in it
+            self.assertLess(min(b[1] for b in win), tymp, d)                   # showing in front
+
+    def test_only_oculi_reliefs_and_mouldings_live_in_a_pediment(self):
+        # An arcade, a door or a balcony read inside a pediment's box above the eaves would hang in
+        # the air (a portico recess behind a tympanum): dropped and noted like anything above the eaves.
+        els = [{"k": "pediment", "box": [6, 11.5, 8, 3]},
+               {"k": "window", "box": [9.5, 12.2, 1, 1]},
+               {"k": "arcade", "box": [7, 12.1, 1, 0.8], "d": 1.5},
+               {"k": "door", "box": [11.5, 12.1, 0.8, 1.0]},
+               {"k": "balcony", "box": [12.5, 12.1, 1, 0.5]}]
+        ps = parts(els)
+        self.assertTrue(of(ps, "window"))
+        for word in ("arcade", "door", "balcony"):
+            self.assertFalse(of(ps, word), word)
+        out = json.loads(check({"units": "m", "parts": [facade(els)]}))
+        self.assertIn("3 element(s) outside", out["notes"][0])
+
+    def test_pediment_must_rest_on_the_wall(self):
+        # A grid of pediments read by mistake: the upper rows would float above the eaves.
+        els = [{"k": "pediment", "box": [2, 11.5, 4, 2], "grid": [2, 3, 8, 3]},
+               {"k": "window", "box": [3.5, 17.8, 1, 1]}]          # an oculus inside a floating one
+        ps = parts(els)
+        self.assertEqual(len(of(ps, "tympanum")), 2)                # only the bottom row is built
+        self.assertTrue(all(bbox(p)[2] < 12 for p in of(ps, "pediment")))
+        self.assertFalse(of(ps, "window"))                           # nothing kept up in the air
+        out = json.loads(check({"units": "m", "parts": [facade(els)]}))
+        self.assertIn("5 element(s) outside", out["notes"][0])
+        # On a gable the wall top is higher: a pediment sitting on the gable's slope still counts.
+        on_gable = parts([{"k": "pediment", "box": [8, 14, 4, 2]}], top=[[10, 16]])
+        self.assertEqual(len(of(on_gable, "tympanum")), 1)
+
+    def test_pavilion_pediment_and_its_cornice(self):
+        # A pavilion rising above a low parapet (risers at u = 4 and u = 10): the pediment sits on
+        # its top, and the cornice crowning it overhangs its sides a little, as built.
+        top = [[0, 13], [4, 13], [4, 15], [10, 15], [10, 13], [20, 13]]
+        els = [{"k": "pediment", "box": [4, 15, 6, 2]},
+               {"k": "molding", "box": [3.85, 14.8, 6.3, 0.25]},
+               {"k": "window", "box": [4.5, 13.5, 1, 1]}]                 # a window in the pavilion
+        ps = parts(els, top=top)
+        self.assertEqual(len(of(ps, "tympanum")), 1)
+        self.assertTrue(of(ps, "window"))
+        # an opening straddling the riser is still cut at the lower wall, not let out
+        cut = parts([{"k": "window", "box": [3.8, 13.5, 1, 1]}], top=top)
+        self.assertFalse(of(cut, "window"))
+        mould = [bbox(p) for p in of(ps, "molding")]
+        self.assertTrue(mould)
+        self.assertAlmostEqual(min(b[0] for b in mould), 3.85)
+        self.assertAlmostEqual(max(b[3] for b in mould), 10.15)
+        out = json.loads(check({"units": "m", "parts": [facade(els, top=top)]}))
+        self.assertNotIn("outside", " ".join(out.get("notes", [])))
+
     def test_pediment_on_a_deep_facade_with_a_hip_roof(self):
         ps = parts([{"k": "pediment", "box": [6, 11.5, 8, 3]}], depth=12, roof="hip", roof_h=4, dormers=3)
         self.assertTrue(of(ps, "tympanum"))
@@ -122,7 +181,14 @@ class RoundPillar(unittest.TestCase):
         ps = parts([{"k": "pillar", "box": [4, 3, 0.8, 6], "shape": "round", "d": 0.5}], style="classic")
         cols = [p for p in ps if p.get("cat") == "pillars"]
         self.assertEqual(len(cols), 3)
-        self.assertAlmostEqual(min(bbox(p)[1] for p in cols if "base" not in p["name"] and "capital" not in p["name"]), -0.5)
+        # The read box is the widest outline (the capital): it stands out by d and spans the box;
+        # the shaft is thinner, on the same axis.
+        self.assertAlmostEqual(min(bbox(p)[1] for p in cols), -0.5)
+        self.assertAlmostEqual(min(bbox(p)[0] for p in cols), 4.0)
+        self.assertAlmostEqual(max(bbox(p)[3] for p in cols), 4.8)
+        shaft = bbox([p for p in cols if p["name"].split()[-1].isdigit()][0])
+        self.assertLess(shaft[3] - shaft[0], 0.8 - 1e-3)
+        self.assertAlmostEqual((shaft[0] + shaft[3]) / 2, 4.4)
 
 
 class Arcade(unittest.TestCase):

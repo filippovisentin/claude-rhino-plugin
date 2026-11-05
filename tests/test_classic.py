@@ -31,9 +31,12 @@ class Classic(unittest.TestCase):
         sb = [bbox(p) for p in named(ps, "surround")]
         self.assertAlmostEqual(min(b[0] for b in sb), 0.85)   # band outside the opening
         self.assertAlmostEqual(max(b[3] for b in sb), 2.55)
-        # two jambs, the sill band and twelve archivolt segments following the arch
-        self.assertEqual(len(named(ps, "surround")), 15)
-        self.assertEqual(len([p for p in named(ps, "surround") if p["type"] == "prism"]), 12)
+        # one band following the arch: the arched outline with the arched opening cut out
+        band = named(ps, "surround")
+        self.assertEqual(len(band), 1)
+        self.assertEqual(band[0]["type"], "prism")
+        self.assertGreater(len(band[0]["pts"]), 10)
+        self.assertAlmostEqual(min(q[1] for q in band[0]["cut"][0]["pts"]), 5.0)   # sill band kept under it
         self.assertEqual(len(named(ps, "keystone")), 1)
         cats = set(p["cat"] for p in ps)
         self.assertIn("windows/surrounds", cats)
@@ -89,7 +92,10 @@ class Classic(unittest.TestCase):
 
     def test_door_surround_keeps_the_foot(self):
         ps = parts([{"k": "door", "box": [5, 0, 2, 3.4]}])
-        self.assertEqual(len(named(ps, "surround")), 3)   # no bottom band
+        band = named(ps, "surround")
+        self.assertEqual(len(band), 1)
+        self.assertLess(min(q[1] for q in band[0]["cut"][0]["pts"]), 0.0)   # no bottom band
+        self.assertAlmostEqual(bbox(band[0])[2], 0.0)
         self.assertAlmostEqual(min(bbox(p)[2] for p in named(ps, "leaf")), 0.06)   # frame on the ground line
 
     def test_plain_style_is_unchanged(self):
@@ -98,7 +104,11 @@ class Classic(unittest.TestCase):
             self.assertAlmostEqual(got, want)
         self.assertFalse(named(ps, "surround"))
         ps = parts([{"k": "window", "box": [1, 5, 1.4, 2.6], "sur": 0.1}], style="plain")
-        self.assertEqual(len(named(ps, "surround")), 4)   # explicit surround still honoured
+        band = named(ps, "surround")                      # explicit surround still honoured
+        self.assertEqual(len(band), 1)
+        b = bbox(band[0])
+        for got, want in zip([b[0], b[2], b[3], b[5]], [0.9, 4.9, 2.5, 7.7]):
+            self.assertAlmostEqual(got, want)
 
     def test_main_cornice_profile_and_dentils(self):
         ps = parts([{"k": "molding", "box": [0, 14, 12, 1], "d": 0.9}])
@@ -126,12 +136,86 @@ class Classic(unittest.TestCase):
         paths = set("::".join(layer_path("L", p, "it")) for p in iron)
         self.assertIn("L::F::Balconi::Ringhiere", paths)
 
+    def test_surrounds_in_a_gable_and_down_to_the_foot(self):
+        # A window in the gable (above the eaves at 15) and arched windows reaching the facade's
+        # foot keep their surround: the gable one measured against the outline, the low ones open
+        # at the foot like a door's.
+        ps = parts([{"k": "window", "box": [5.5, 15.5, 1, 1.4]},
+                    {"k": "window", "box": [1, 0, 1.4, 3], "shape": "arch", "sur": 0.3},
+                    {"k": "window", "box": [9, 0.05, 1.4, 3], "shape": "arch", "sur": 0.3}], top=[[6, 19]])
+        bands = dict((p["join"], p) for p in ps if p.get("cat") == "windows/surrounds" and "keystone" not in p["name"])
+        self.assertEqual(sorted(bands), ["F window 0", "F window 1", "F window 2"])
+        g = bbox(bands["F window 0"])
+        self.assertAlmostEqual(g[0], 5.5 - 0.15)
+        self.assertAlmostEqual(g[5], 16.9 + 0.15)
+        for j in ("F window 1", "F window 2"):
+            b = bands[j]
+            self.assertAlmostEqual(bbox(b)[0], (1 if j.endswith("1") else 9) - 0.3)
+            self.assertLess(min(q[1] for q in b["cut"][0]["pts"]), min(q[1] for q in b["pts"]))   # open foot
+        hole = [h for h in ps[0]["holes"] + [c for c in ps[0].get("cut", [])] if isinstance(h, list)]
+        self.assertTrue(any(abs(h[0] - 9) < 1e-9 and abs(h[2] - 1.4) < 1e-9 for h in hole))   # opening as read
+
+    def test_bands_are_one_solid_each(self):
+        # Surrounds, oculus rings and arched frames: one prism of the outer outline with the inner
+        # outline cut out, never a ring of segments (their union is open and non-manifold in Rhino).
+        els = [{"k": "window", "box": [1, 2, 1.2, 2.2], "shape": "arch"},
+               {"k": "window", "box": [4, 2, 1.2, 2.2], "shape": "seg"},
+               {"k": "window", "box": [7, 2, 1.0, 1.0], "shape": "round"},
+               {"k": "window", "box": [9, 2, 1.0, 1.6]},
+               {"k": "door", "box": [4, 6, 1.6, 2.8], "shape": "arch"}]
+        ps = parts(els)
+        for cat in ("windows/surrounds", "windows/frames", "doors/surrounds"):
+            mine = [p for p in ps if p.get("cat") == cat and "keystone" not in p["name"]]
+            per = {}
+            for p in mine:
+                per.setdefault(p["join"], []).append(p)
+            for join, group in per.items():
+                self.assertEqual(len(group), 1, (cat, join, [q["type"] for q in group]))
+        arch_frames = [p for p in ps if p.get("cat") == "windows/frames" and p["join"] in ("F window 0", "F window 1")]
+        self.assertEqual(len(arch_frames), 2)                          # arched windows get a frame too
+        for p in ps:
+            for c in p.get("cut", []):                                  # cutters pass right through
+                if p["type"] == "prism" and c["type"] == "prism":
+                    self.assertLess(c["at"][1], p["at"][1])
+                    self.assertGreater(c["at"][1] + c["len"], p["at"][1] + p["len"])
+        door = [p for p in ps if p.get("cat") == "doors/surrounds" and "keystone" not in p["name"]][0]
+        self.assertLess(min(q[1] for q in door["cut"][0]["pts"]), 6.0)  # open at the foot: no band under a door
+
+    def test_consoles_keep_clear_of_the_openings_below(self):
+        # A balcony 30 cm over a window head (15 cm of it is the window's surround) and a French window
+        # behind it: no console may hang over either opening or its surround; consoles beside the
+        # window stay full length, and those over it keep only the free space or go.
+        els = [{"k": "balcony", "box": [2, 6, 4, 1.1], "d": 1.0},
+               {"k": "window", "box": [3.2, 3.9, 1.2, 1.8]},          # head at 5.7, surround to 5.85
+               {"k": "window", "box": [3.2, 5.9, 1.2, 2.4]}]          # French window starting under the slab
+        ps = parts(els)
+        cons = [bbox(p) for p in named(ps, "console")]
+        self.assertTrue(cons)
+        ops = [bbox(p) for p in ps if p.get("cat", "").split("/")[0] == "windows"]
+        for c in cons:
+            for o in ops:
+                clash = min(c[3], o[3]) - max(c[0], o[0]) > 1e-6 and min(c[5], o[5]) - max(c[2], o[2]) > 1e-6
+                self.assertFalse(clash, (c, o))
+        self.assertAlmostEqual(min(c[2] for c in cons), 6 - 0.6)       # clear of the window: full 60 cm
+        # Nothing below: same consoles as before.
+        alone = [bbox(p) for p in named(parts(els[:1]), "console")]
+        self.assertEqual(len(alone), 5)
+        self.assertLess(len(cons), 5)                                   # those over the window went
+        self.assertTrue(all(abs(c[2] - 5.4) < 1e-9 for c in alone))
+
     def test_pilaster_and_rustication(self):
         ps = parts([{"k": "pillar", "box": [0.2, 0, 0.6, 8]},
                     {"k": "door", "box": [5, 0, 2, 3.4]},
                     {"k": "rustic", "box": [0, 0, 12, 4.5]}])
         self.assertEqual(len(named(ps, "base")), 1)
         self.assertEqual(len(named(ps, "capital")), 1)
+        # The read box is the pilaster's widest outline (capital and base): nothing wider than it,
+        # the shaft set in from it.
+        pil = [bbox(p) for p in ps if p.get("cat") == "pillars"]
+        self.assertAlmostEqual(min(b[0] for b in pil), 0.2)
+        self.assertAlmostEqual(max(b[3] for b in pil), 0.8)
+        shaft = bbox([p for p in ps if p.get("cat") == "pillars" and p["name"].split()[-1].isdigit()][0])
+        self.assertGreater(shaft[0], 0.2 + 1e-3)
         courses = named(ps, "rustic")
         # 10 courses of 0.45 m; the 8 below the door head are split in two by it
         self.assertEqual(len(courses), 8 * 2 + 2)

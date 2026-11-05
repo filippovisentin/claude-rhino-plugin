@@ -79,7 +79,7 @@ round piers and glass doors.
 - Cladding or material by zone (cfp_0196's timber ground floor): a palette has one wall colour.
 - Iron railings still read as a dark band from a distance: 12 cm bar spacing is the building-code
   value, and at that density the bars merge in a render.
-- Detector classes for porticoes, pediments, modern balconies, spandrels and oculi (13), finials (14),
+- Detector classes for porticoes, pediments, modern balconies, spandrels and oculi (13), finials (14 is built now),
   shadowed checking renders (15).
 
 ## Second round: five more photos
@@ -112,6 +112,86 @@ leaving a build warning.
 Still open from this round: the podium deck and fence in front of second_32 (site elements), the
 townhouses' roof vents and plumbing stacks (too small to matter), brick and stone texture (colour only),
 lettering on signs.
+
+## Third round: fuzzing the planner offline
+
+The fuzzer's specs now go through `rhinospec.check` (no Rhino) by the thousand, with one more test: every
+building must be a single group of touching parts (`floating` only flags parts that touch nothing).
+
+- The fuzzer gave glazing bars to pediments (rejected) instead of windows: 45 % of its specs were thrown
+  away and bars were never stress-tested. Fixed; 9000 specs, no crash.
+- Hip and mansard roofs had no roof slab: they started 30 cm above the walls, in the air (the mansard's
+  two tiers touched each other, so the check missed it). Every roof now rests on the slab.
+- A pediment above the wall's top edge (a grid read by mistake) floated; it is now dropped and noted, and
+  so is an oculus inside it.
+- 14 closed: `k:"finial"` (`shape` urn, ball or spire), a pedestal and a body of revolution; on the wall's
+  top edge it rises above the eaves over the wall thickness, lower down it stands against the wall.
+  Built in Rhino 8: valid closed solids, own layer (Finials / Pinnacoli), trim colour of the palette.
+
+Still open from this round: a round pillar with `d` larger than its diameter and its foot above the
+ground stands free in the air (only a reading slip produces it; left as is so porticoes on a podium keep
+working).
+
+## Fourth round: is the 3D what the spec says, and can it be edited?
+
+Round trip on 60 CMP ground-truth facades (annotation -> spec -> planned solids -> elevation -> IoU
+against the annotation, per class): plain and modern reproduce every box (IoU 1.00); classic adds only
+what it means to (window and door surrounds, 15 cm outside the opening). Found and fixed:
+
+- Classic pilasters and round columns were wider than their box (base and capital 6 cm out each side):
+  the read box is now their widest outline, the shaft set in.
+- 40 % of the classic balcony consoles hung over the window or surround below: each console now stops
+  above the opening under it, or goes when less than 8 cm is left (0 % left; 12 of 172 balconies keep
+  none, those across French windows).
+
+Built in Rhino 8 (`tools/solid_audit.py`: 15 real readings and 40 random specs, 12554 objects):
+
+- Arched and round surrounds and oculus frames were rings of short segments; their union came out
+  open and non-manifold (33 objects). Each band is now one prism with the opening cut through it,
+  and arched windows got the frame they lacked.
+- When an element's union failed, its pieces were stored as one object with several shells (76
+  objects). The union is now kept only when it is a closed, manifold solid; otherwise the pieces are
+  separate solids in a group named after the element. Clearing a build also removes its groups.
+- Floor slabs were spread evenly over the height and showed through the windows (126 crossings on
+  cfp_0003 and d_0140): each slab now sits in the nearest band between rows of openings within half a
+  storey, and where none is free (a double-height shop or portico) it stops 1.5 m behind the opening.
+- Result: 0 open, non-manifold, naked-edge or multi-shell objects, no slab seen through glass, no
+  build warning. The same audit on the previous builder finds 58 bad objects and 210 slab hits on four
+  of those readings.
+
+## Fifth round: two new photos, read and built
+
+| photo | type |
+|---|---|
+| cfp_r5a | eclectic upper storeys: three attic pavilions (two triangular pediments, one segmental top), five arched windows with archivolts, paired pilasters, frieze panels; ground floor cut off by the photo |
+| cfp_r5b | modern three-storey office: two-storey curtain wall over a glazed entrance with a canopy, punched windows, dark stone base, open carport under the building |
+
+- Pediments on a pavilion and the cornice crowning it were dropped: the outline was measured over the
+  element's full width, ends included, so the low parapet beside the pavilion counted. Projecting
+  elements (mouldings, cornices, pediments, deco, sills, finials) are now measured over their core,
+  their ends free to overhang; openings stay strict.
+- Classic windows lost their surround above the eaves (the room above was measured to the eaves, not to
+  the outline) and when they reach the facade's foot (no room under them): 2 surrounds for 15 windows on
+  cfp_r5a. The room above follows the outline, and with no room below the band is open at the foot,
+  as a door's: 15 of 15.
+- Rendered views and renders were plain white: the build set colours but no materials. Every layer now
+  gets a shared render material of its colour (glass transparent), objects with their own colour get
+  theirs; materials are reused by name and the legacy copies Rhino leaves behind are purged on rebuild
+  (three rebuilds: 15 render materials, 63 legacy entries, unchanged).
+- Flat roofs were drawn as tiled ones (terracotta): their slab has its own layer, Flat roof / Copertura
+  piana, in neutral grey; `palette.roof` still applies.
+- Found by the connectivity fuzzer on the way: anything read inside a pediment's box was kept above
+  the eaves, so a portico read there got its recess built in the air; only windows (oculi), reliefs and
+  mouldings live in a pediment now. And an oculus with a deep `d` was lifted onto the tympanum by its
+  full `d`, not by the recess actually built (capped by the wall), and floated up to a metre in front
+  of it.
+- cfp_r5b's curtain wall spans two storeys: the slab behind it is cut back (fourth round), checked in
+  Rhino.
+
+Still open: the radiating fanlight bars of cfp_r5a's central window (bars stop at the springing), the
+rooftop railing set back on cfp_r5b (no element for it), relief invisible in shadowless views (15).
+Audit after this round, in Rhino: 71 specs, 13845 objects, no open, non-manifold or multi-shell object,
+no slab seen through glass, no warning; the document is left empty.
 
 ## Already fixed during the trials
 

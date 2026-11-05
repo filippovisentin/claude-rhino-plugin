@@ -88,6 +88,13 @@ test("helpers: defaults and detector discovery", () => {
   const found = findDetector(dir, { RHINO_FACADE_PYTHON: py, RHINO_FACADE_WEIGHTS: w });
   assert.equal(found.python, py);
   assert.equal(found.weights, w);
+  // Without RHINO_FACADE_WEIGHTS: the parts model when trained, else yesterday's all11s.
+  const runs = join(dir, "data", "det-runs");
+  for (const run of ["all11s", "parts11s"]) {
+    mkdirSync(join(runs, run, "weights"), { recursive: true });
+    writeFileSync(join(runs, run, "weights", "best.pt"), "");
+    assert.equal(findDetector(dir, { RHINO_FACADE_PYTHON: py }).weights, join(runs, run, "weights", "best.pt"));
+  }
 });
 
 test("runDetector reads the last stdout line", async () => {

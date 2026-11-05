@@ -28,8 +28,9 @@ PRIMITIVES = ("box", "cyl", "cone", "sphere", "torus", "extrude", "prism", "revo
 COMPOSITES = ("array", "building", "facade", "block", "stair", "column")
 # Classical orders: column height in lower diameters (Vignola).
 ORDERS = {"tuscan": 7.0, "doric": 8.0, "ionic": 9.0, "corinthian": 10.0}
-FACADE_CLASSES = ("window", "door", "shop", "balcony", "cornice", "molding", "pillar", "sill", "blind", "deco", "rustic", "quoin", "spandrel", "pediment", "arcade", "clad", "pipe")
+FACADE_CLASSES = ("window", "door", "shop", "balcony", "cornice", "molding", "pillar", "sill", "blind", "deco", "rustic", "quoin", "spandrel", "pediment", "arcade", "clad", "pipe", "finial")
 DECO_SHAPES = ("block", "console", "oval", "panel")
+FINIAL_SHAPES = ("urn", "ball", "spire")
 STYLES = ("plain", "classic", "modern")
 RAILS = ("balustrade", "iron", "solid", "glass")
 LEAVES = ("panel", "glass", "garage")   # door leaf: panelled, glazed (French, patio), sectional
@@ -478,7 +479,7 @@ def _facade(part, path, m=1.0):
             el["d"] = _num(e["d"], ep + ".d", 0, 10 * m)
         if "shape" in e:
             allowed = (("rect", "arch", "seg", "round") if el["k"] == "window" else ("rect", "arch", "seg") if el["k"] in OPENINGS + ("arcade",) else ("flat", "tri", "seg") if el["k"] == "cornice"
-                       else DECO_SHAPES if el["k"] == "deco" else ("square", "round") if el["k"] == "pillar" else ())
+                       else DECO_SHAPES if el["k"] == "deco" else FINIAL_SHAPES if el["k"] == "finial" else ("square", "round") if el["k"] == "pillar" else ())
             if e["shape"] not in allowed:
                 _fail(ep + ".shape", "expected one of %s" % (", ".join(allowed) or "nothing for %s" % el["k"]))
             el["shape"] = e["shape"]
@@ -651,9 +652,9 @@ def _take_dormers(b, els, h):
     if not spots:
         return els
     from .plan import in_pediment, pediment_boxes
-    peds = pediment_boxes({"els": els})
+    peds = pediment_boxes({"els": els, "h": h})
     b["dormer_at"] = spots
-    return [el for el in els if not (el["box"][1] >= h - 1e-6 and el["k"] != "pediment"
+    return [el for el in els if not (el["box"][1] >= h - 1e-6 and el["k"] not in ("pediment", "finial")
                                      and not in_pediment(el["box"], peds))]
 
 

@@ -206,9 +206,65 @@ def detect(fid, weights, conf=0.25):
 
 
 REVIEW = ("Detector draft in this image's pixels. Reliable: window, sill, cornice, molding, balcony, "
-          "blind, deco. Check yourself: door, shop, pillar (often missed or wrong), set h and px "
-          "(the facade's own corners; the draft spans the whole image), merge duplicates, add rustic/quoin. "
+          "blind; arch and round window shapes, pediments (cornice tri over an opening, else k pediment) "
+          "and finials come from a model trained on monuments: keep them where the photo agrees. Check "
+          "yourself: door (weakest class), shop, pillar, deco, set h and px (the facade's own corners; "
+          "the draft spans the whole image), merge duplicates, add rustic/quoin. "
           "palette: colours read off the photo (median, exposure-corrected); check it before passing it on.")
+
+
+# Element order in a draft: CMP's classes, then what the parts model adds.
+ORDER = NAMES + ["pediment", "finial"]
+
+
+def _iou(a, b):
+    ix = max(0, min(a[2], b[2]) - max(a[0], b[0]))
+    iy = max(0, min(a[3], b[3]) - max(a[1], b[1]))
+    inter = ix * iy
+    union = (a[2] - a[0]) * (a[3] - a[1]) + (b[2] - b[0]) * (b[3] - b[1]) - inter
+    return inter / float(union) if union > 0 else 0.0
+
+
+def _hood(b, openings):
+    """A pediment box that crowns an opening: just above it, about as wide."""
+    bh = b[3] - b[1]
+    for o in openings:
+        ow = o["box"][2] - o["box"][0]
+        overlap = min(b[2], o["box"][2]) - max(b[0], o["box"][0])
+        gap = o["box"][1] - b[3]
+        if overlap >= 0.6 * ow and b[2] - b[0] <= 1.8 * ow and -0.3 * bh <= gap <= 0.6 * bh:
+            return True
+    return False
+
+
+def draft_elements(dets, w, h, conf=0.25):
+    """Detections [(class, conf, x0, y0, x1, y1) px] -> px spec elements, in the spec's own words.
+    The parts model's extra classes become shapes and elements the builder knows: an arch or an
+    oculus shapes the opening under it (or is an opening of that shape when none is there), a
+    triangular pediment just above an opening is its hood (cornice tri) and otherwise a pediment,
+    a segmental one a curved hood (cornice seg), a finial a spire."""
+    from facade_regular import dedupe
+    clip = lambda b: [max(0, round(b[0])), max(0, round(b[1])), min(w, round(b[2])), min(h, round(b[3]))]
+    dets = [(k, c, clip(b)) for k, c, *b in dedupe(dets) if c >= conf]
+    dets = [d for d in dets if d[2][2] > d[2][0] and d[2][3] > d[2][1]]
+    els = [{"k": k, "box": b} for k, c, b in dets if k in NAMES]
+    openings = [e for e in els if e["k"] in ("window", "door", "shop")]
+    for k, c, b in sorted((d for d in dets if d[0] in ("arch", "oculus")), key=lambda d: -d[1]):
+        shape = "arch" if k == "arch" else "round"
+        cand = [e for e in openings if "shape" not in e and (k == "arch" or e["k"] == "window") and _iou(e["box"], b) >= 0.5]
+        if cand:
+            max(cand, key=lambda e: _iou(e["box"], b))["shape"] = shape
+        else:
+            els.append({"k": "window", "box": b, "shape": shape})
+    for k, c, b in dets:
+        if k == "finial":
+            els.append({"k": "finial", "box": b, "shape": "spire"})
+        elif k == "pediment_seg":
+            els.append({"k": "cornice", "box": b, "shape": "seg"})
+        elif k == "pediment":
+            els.append({"k": "cornice", "box": b, "shape": "tri"} if _hood(b, openings) else {"k": "pediment", "box": b})
+    els.sort(key=lambda e: (ORDER.index(e["k"]), e["box"][1] // 20, e["box"][0]))
+    return els
 
 
 def detect_image(path, weights, conf=0.25):
@@ -219,9 +275,7 @@ def detect_image(path, weights, conf=0.25):
     h, w = r.orig_shape
     dets = [(r.names[int(c)], float(p), *map(float, b))
             for c, p, b in zip(r.boxes.cls.tolist(), r.boxes.conf.tolist(), r.boxes.xyxy.tolist())]
-    from facade_regular import dedupe
-    els = detections_to_spec(dedupe(dets), w, h, "draft", conf)["parts"][0]["els"]
-    els.sort(key=lambda e: (NAMES.index(e["k"]), e["box"][1] // 20, e["box"][0]))
+    els = draft_elements(dets, w, h, conf)
     out = {"img": [w, h], "els": els, "review": REVIEW}
     pal = sample_palette(path, els)
     if pal:

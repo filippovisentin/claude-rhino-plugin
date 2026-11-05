@@ -159,8 +159,44 @@ def _engulfed(brep, cutters):
     return False
 
 
-def _layer(doc, segments, color=None, cache=None):
-    """Index of rhinospec::seg1::seg2..., creating missing levels. A new deepest layer gets color."""
+def _material(doc, color, glass=False, cache=None):
+    """The shared render material for a colour (transparent for glass), made once per document:
+    Rendered views and renders show the model's colours, not plain white. A RenderMaterial, so
+    every object and layer uses the same one (per-object legacy material indices get copied)."""
+    name = "rhinospec %s%s" % (color.lower(), " glass" if glass else "")
+    if cache is not None and name in cache:
+        return cache[name]
+    rm = next((m for m in doc.RenderMaterials if m.Name == name), None)
+    if rm is None:
+        mat = Rhino.DocObjects.Material()
+        mat.Name = name
+        mat.DiffuseColor = _color(color)
+        if glass:
+            mat.Transparency = 0.55
+            mat.Reflectivity = 0.25
+        rm = Rhino.Render.RenderMaterial.CreateBasicMaterial(mat, doc)
+        rm.Name = name
+        doc.RenderMaterials.Add(rm)
+    if cache is not None:
+        cache[name] = rm
+    return rm
+
+
+def _purge_materials(doc):
+    """Rhino mirrors every object's render material in the legacy material table and keeps the
+    copies after the object is deleted: drop the rhinospec ones nothing uses any more, so
+    rebuilding does not grow the document."""
+    used = set(o.Attributes.MaterialIndex for o in doc.Objects)
+    used.update(l.RenderMaterialIndex for l in doc.Layers if not l.IsDeleted)
+    for i in range(doc.Materials.Count - 1, -1, -1):
+        m = doc.Materials[i]
+        if not m.IsDeleted and i not in used and m.Name.startswith("rhinospec "):
+            doc.Materials.DeleteAt(i)
+
+
+def _layer(doc, segments, color=None, cache=None, glass=False):
+    """Index of rhinospec::seg1::seg2..., creating missing levels. The deepest layer gets color and a
+    render material of that colour (unless it already has a material, e.g. set by the user)."""
     full = ROOT_LAYER
     parent = None
     idx = -1
@@ -179,6 +215,11 @@ def _layer(doc, segments, color=None, cache=None):
                 if color and depth == len(path) - 1:
                     layer.Color = _color(color)
                 idx = doc.Layers.Add(layer)
+                if color and depth == len(path) - 1:
+                    doc.Layers[idx].RenderMaterial = _material(doc, color, glass, cache)
+            elif color and depth == len(path) - 1 and doc.Layers[idx].RenderMaterial is None:
+                # a layer from a build before materials existed
+                doc.Layers[idx].RenderMaterial = _material(doc, color, glass, cache)
             if cache is not None:
                 cache[full] = idx
         parent = idx
@@ -195,19 +236,23 @@ def _color(hexstr):
     return System.Drawing.Color.FromArgb(int(hexstr[1:3], 16), int(hexstr[3:5], 16), int(hexstr[5:7], 16))
 
 
+def _clean(b):
+    """A closed, manifold, valid solid: what Rhino can edit and boolean again."""
+    return b is not None and b.IsValid and b.IsSolid and b.IsManifold
+
+
 def _join(breps, tol):
-    """Pieces of one element as one object: a boolean union when it succeeds (clean solid, no
-    inner faces), otherwise every piece appended into a single multi-shell brep."""
+    """Pieces of one element: one solid when their boolean union is a clean solid (no inner faces),
+    else the clean solids the union gives (pieces that do not touch), else the pieces as they are.
+    Never one brep holding several shells, nor an open or non-manifold union: the caller groups
+    the pieces when there are several, so the element still selects as one."""
     if len(breps) == 1:
         return breps
     if len(breps) <= MAX_UNION:
         u = rg.Brep.CreateBooleanUnion(_net(rg.Brep, breps), tol)
-        if u and len(u) == 1 and u[0].IsValid:
-            return [u[0]]
-    one = rg.Brep()
-    for b in breps:
-        one.Append(b)
-    return [one] if one.IsValid else breps
+        if u and all(_clean(b) for b in u):
+            return list(u)
+    return breps
 
 
 def build(spec, doc=None, redraw=True):
@@ -231,10 +276,16 @@ def build(spec, doc=None, redraw=True):
         removed = 0
         if spec["clear"]:
             # The spec's whole layer tree, and nothing outside it.
+            groups = set()
             for li in _tree_layers(doc, layer_name):
                 for obj in list(doc.Objects.FindByLayer(doc.Layers[li]) or []):
+                    groups.update(obj.Attributes.GetGroupList() or [])
                     if doc.Objects.Delete(obj, True):
                         removed += 1
+            for gi in groups:   # the groups of the previous build, now empty
+                if not doc.Groups.GroupMembers(gi):
+                    doc.Groups.Delete(gi)
+            _purge_materials(doc)
 
         bbox = rg.BoundingBox.Empty
         ids = []
@@ -260,7 +311,8 @@ def build(spec, doc=None, redraw=True):
                 else:
                     warnings.append("%s: cut failed, kept uncut" % label)
             attrs = Rhino.DocObjects.ObjectAttributes()
-            li, lname = _layer(doc, layer_path(spec["layer"], p, lang), layer_color(p), cache)
+            glass = p.get("cat", "").endswith("glass")
+            li, lname = _layer(doc, layer_path(spec["layer"], p, lang), layer_color(p), cache, glass)
             attrs.LayerIndex = li
             used.add(lname)
             if p.get("name"):
@@ -268,6 +320,7 @@ def build(spec, doc=None, redraw=True):
             if p.get("color"):
                 attrs.ColorSource = Rhino.DocObjects.ObjectColorSource.ColorFromObject
                 attrs.ObjectColor = _color(p["color"])
+                attrs.RenderMaterial = _material(doc, p["color"], glass, cache)
             if p.get("join"):
                 key = (p["join"], li, p.get("color"))
                 if key not in joined:
@@ -287,13 +340,17 @@ def build(spec, doc=None, redraw=True):
 
         for key in order:
             attrs, breps = joined[key]
+            mine = []
             for piece in _join(breps, tol):
                 oid = doc.Objects.AddBrep(piece, attrs)
                 if oid == System.Guid.Empty:
                     warnings.append("%s: could not be added" % key[0])
                     continue
-                ids.append(oid)
+                mine.append(oid)
                 bbox = rg.BoundingBox.Union(bbox, piece.GetBoundingBox(True))
+            if len(mine) > 1:   # one element, several solids: a group selects them together
+                doc.Groups.Add(_net(System.Guid, mine))
+            ids.extend(mine)
 
         # Redrawing makes Rhino mesh everything and print "Creating meshes...": skip it in batches.
         if redraw:

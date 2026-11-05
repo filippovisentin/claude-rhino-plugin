@@ -12,16 +12,16 @@ import { DETECT_TOOL, checkConf, checkImage, runDetector } from "./facade-detect
 export const MAX_SPEC_BYTES = 1_000_000;
 const SLOT_RE = /^[A-Za-z0-9_.-]{1,64}$/;
 
-const SPEC_DOC = `JSON spec -> Rhino solids. {"units":"mm|cm|m","layer":"Name","clear":true,"parts":[...]}. clear:true replaces the layer's previous build.
+const SPEC_DOC = `JSON spec -> Rhino solids. {"units":"mm|cm|m","layer":"Name","clear":true,"parts":[...]}. clear:true replaces the layer's last build.
 Every part: type, name, at:[x,y,z], rot (deg about Z through at), tilt:[deg x, deg y] (before rot), color "#rrggbb", cut:[parts], group (own sublayer). "lang":"it": Italian layer names.
 Primitives: box size:[x,y,z] (corner at at) | cyl r,h | cone r,h,r2 | sphere r | torus R,r | extrude pts:[[x,y]..],h | prism pts:[[x,z]..],len (profile in XZ, along +y) | revolve profile:[[r,z]..] | loft sections:[{pts,z}..] | pipe path:[[x,y,z]..] (relative to at),r | panel size:[w,h],t,holes:[[u,v,w,h]..].
 array: of:part, n:[nx,ny,nz], step:[dx,dy,dz], turn (deg/copy about pivot:[x,y]: spirals).
 building: footprint:[[x,y]..], floors, floor_h, wall_t, slab_t, roof, roof_h, openings:[{wall,offset,width,height,sill,floor,count,gap}].
 column: order tuscan|doric|ionic|corinthian, h, d (default h/7..h/10), count, spacing, axis x|y (colonnades).
 stair: kind straight (w, tread, climbs +y) | spiral (r, core, step deg), h, rail both|left|right|outer|none.
-facade (photo elevation): h (eaves, m), px:[x0,y0,x1,y1] facade corners in photo px, els:[{k, box:[x0,y0,x1,y1] px, grid:[nx,ny,dx,dy] px or xs:[..],ys:[..] starts, bars:[v,h], shape, d, color}], top:[[x,y]..] px (wall above the eaves, left to right: gable, steps, parapet), depth (walls, slabs, roof), floors, roof flat|gable|hip|mansard|none, roof_h, dormers, chimneys (count or x px), palette, t. Windows above the eaves become dormers.
+facade (photo elevation): h (eaves, m), px:[x0,y0,x1,y1] corners in photo px, els:[{k, box:[x0,y0,x1,y1] px, grid:[nx,ny,dx,dy] px or xs:[..],ys:[..] starts, bars:[v,h], shape, d, color}], top:[[x,y]..] px (wall above eaves, left to right: gable, steps, parapet), depth (walls, slabs, roof), floors, roof flat|gable|hip|mansard|none, roof_h, dormers, chimneys (count or x px), palette, t. Windows above the eaves become dormers.
 style classic (pre-1940) | modern (slim dark frames, glass doors) | plain. palette:{wall,trim,frames,glass,shutters,doors,railings,roof,spandrels,clad} from the photo. sur, rail balustrade|iron|solid|glass, deco shape console|oval|panel.
-block (corner photos): w (x), d (y), h, t, style, palette, floors, roof, roof_h, dormers, chimneys, at, rot, faces:{front,right,back,left:{px,els}}; front along +x at y=0, others counter-clockwise, read from outside. k: window (shape rect|arch|seg|round; box = opening) | door (leaf panel|glass|garage) | shop, arcade (open portico arch, d recess; doors inside go on its back wall), cornice (shape flat|tri|seg), pediment (above the eaves, contents kept), molding (main cornice d 0.6-1.2), sill, pillar (shape round), balcony, blind, deco, spandrel, rustic, quoin, clad (material zone), pipe (downpipe). Grid regular rows.
+block (corner photos): w (x), d (y), h, t, style, palette, floors, roof, roof_h, dormers, chimneys, at, rot, faces:{front,right,back,left:{px,els}}; front along +x at y=0, others counter-clockwise from outside. k: window (shape rect|arch|seg|round; box = opening) | door (leaf panel|glass|garage) | shop, arcade (open portico arch, d recess, doors inside on its back wall), cornice (shape flat|tri|seg), pediment (rises above eaves), molding (main cornice d 0.6-1.2), sill, pillar (shape round), balcony, blind, deco, spandrel, rustic, quoin, clad (material zone), pipe (downpipe), finial (urn|ball|spire, on parapets). Grid regular rows.
 Result: {"ok":true,"added":n,"bbox":..}, plus "floating" parts and "notes" to fix, or {"ok":false,"error":"path: reason"}.`;
 
 export const TOOLS = [
