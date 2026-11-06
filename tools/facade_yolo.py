@@ -267,14 +267,76 @@ def draft_elements(dets, w, h, conf=0.25):
     return els
 
 
+def fuse_boxes(per_model, weights=None, iou=0.55, mode="avg"):
+    """Weighted boxes fusion (Solovyev et al. 2021) of several models' detections on one photo.
+    per_model: one list of (class, conf, x0, y0, x1, y1) per model. Boxes of the same class that
+    overlap (IoU > iou with the cluster's fused box) are averaged, weighted by confidence.
+    mode avg: a box found by only some of the models keeps a proportionally lower confidence, so
+    the models must agree to stay confident. mode max: the cluster keeps its most confident
+    member's confidence (over the largest model weight), so one model alone is enough."""
+    weights = list(weights or [1.0] * len(per_model))
+    total = float(sum(weights))
+    boxes = sorted(((k, c * wt, list(b)) for dets, wt in zip(per_model, weights) for k, c, *b in dets),
+                   key=lambda d: -d[1])
+    clusters = []   # [class, [(score, box)], fused box]
+    for k, s, b in boxes:
+        best, best_iou = None, iou
+        for cl in clusters:
+            if cl[0] == k:
+                v = _iou(cl[2], b)
+                if v > best_iou:
+                    best, best_iou = cl, v
+        if best is None:
+            clusters.append([k, [(s, b)], b])
+        else:
+            best[1].append((s, b))
+            ssum = sum(x[0] for x in best[1])
+            best[2] = [sum(x[0] * x[1][i] for x in best[1]) / ssum for i in range(4)]
+    out = []
+    for k, members, b in clusters:
+        if mode == "max":
+            score = max(m[0] for m in members) / max(weights)
+        else:
+            score = sum(m[0] for m in members) / len(members) * min(len(members), len(per_model)) / total
+        out.append((k, min(1.0, score), *b))
+    return out
+
+
+_MODELS = {}
+
+
+def predict(weights, path, conf=0.25, model_weights=None, mode="max"):
+    """Detections [(class, conf, x0, y0, x1, y1) px] and (w, h) for one photo. weights is one .pt
+    path, or several joined by os.pathsep (or a list): then every model runs at a lower
+    confidence and their boxes are fused (fuse_boxes) before the threshold. The first model is
+    the main one and weighs 2, the others 1, unless model_weights says otherwise.
+    Measured (tools/ensemble_report.py, report4's unseen photos): parts2m + parts11s, max, 2:1
+    against parts2m alone: mAP50 CMP 0.742 -> 0.764, modern 0.982 = 0.982, Oxford 0.813 -> 0.807,
+    monuments 0.988 -> 0.999; pixel IoU vs Claude's 0.516 on CMP 0.619 -> 0.629 at conf 0.25.
+    Plain WBF (mode avg) scored higher on CMP but was unstable: its mean over cluster members
+    falls as low-confidence boxes join, which moved Oxford between 0.76 and 0.85."""
+    from ultralytics import YOLO
+    paths = weights if isinstance(weights, (list, tuple)) else str(weights).split(os.pathsep)
+    paths = [p for p in paths if p]
+    per, w, h = [], None, None
+    for p in paths:
+        if p not in _MODELS:
+            _MODELS[p] = YOLO(p)
+        r = _MODELS[p].predict(path, conf=conf if len(paths) == 1 else min(conf, 0.05) / 2, verbose=False)[0]
+        h, w = r.orig_shape
+        per.append([(r.names[int(c)], float(s), *map(float, b))
+                    for c, s, b in zip(r.boxes.cls.tolist(), r.boxes.conf.tolist(), r.boxes.xyxy.tolist())])
+    if len(per) == 1:
+        return per[0], (w, h)
+    mw = model_weights or [2.0] + [1.0] * (len(per) - 1)
+    dets = [d for d in fuse_boxes(per, mw, mode=mode) if d[1] >= conf]
+    return dets, (w, h)
+
+
 def detect_image(path, weights, conf=0.25):
     """Any photo -> {img, els, review}: a px facade draft for Claude to correct, sorted by class
-    and position so rows read in order."""
-    from ultralytics import YOLO
-    r = YOLO(weights).predict(path, conf=conf, verbose=False)[0]
-    h, w = r.orig_shape
-    dets = [(r.names[int(c)], float(p), *map(float, b))
-            for c, p, b in zip(r.boxes.cls.tolist(), r.boxes.conf.tolist(), r.boxes.xyxy.tolist())]
+    and position so rows read in order. weights: one model, or several joined by os.pathsep."""
+    dets, (w, h) = predict(weights, path, conf)
     els = draft_elements(dets, w, h, conf)
     out = {"img": [w, h], "els": els, "review": REVIEW}
     pal = sample_palette(path, els)
@@ -344,15 +406,10 @@ def _expose(pal, target=0.78, most=1.6):
 
 def compare(weights, conf=0.25):
     """mIoU per test photo and mean IoU per class, detector against Claude's readings."""
-    from ultralytics import YOLO
-    model = YOLO(weights)
     rows, per = [], {"det": {}, "claude": {}}
     for fid in test_ids():
         path = os.path.join(FB.WORK, fid + ".jpg")
-        r = model.predict(path, conf=conf, verbose=False)[0]
-        h, w = r.orig_shape
-        dets = [(r.names[int(c)], float(p), *map(float, b))
-                for c, p, b in zip(r.boxes.cls.tolist(), r.boxes.conf.tolist(), r.boxes.xyxy.tolist())]
+        dets, (w, h) = predict(weights, path, conf)
         det = FB.score_px(fid, detections_to_spec(dets, w, h, fid, conf))
         cla = FB.score_px(fid, FB._load(os.path.join(FB.WORK, fid + ".pred.json")))
         rows.append((fid, det["mIoU"], cla["mIoU"], det["openings_IoU"], cla["openings_IoU"]))

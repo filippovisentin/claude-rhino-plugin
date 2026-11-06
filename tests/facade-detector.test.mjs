@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, writeFileSync, mkdirSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { delimiter, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createSpecBridge } from "../scripts/spec-tool.mjs";
 import { checkConf, checkImage, findDetector, runDetector } from "../scripts/facade-detector.mjs";
@@ -88,13 +88,26 @@ test("helpers: defaults and detector discovery", () => {
   const found = findDetector(dir, { RHINO_FACADE_PYTHON: py, RHINO_FACADE_WEIGHTS: w });
   assert.equal(found.python, py);
   assert.equal(found.weights, w);
-  // Without RHINO_FACADE_WEIGHTS: the best trained run wins (parts2m, then parts11s, then all11s).
+  // Without RHINO_FACADE_WEIGHTS: the best trained run wins (parts2m, then parts11s, then all11s), and
+  // parts2m and parts11s are fused once both exist.
   const runs = join(dir, "data", "det-runs");
-  for (const run of ["all11s", "parts11s", "parts2m"]) {
+  const best = (run) => join(runs, run, "weights", "best.pt");
+  const train = (run) => {
     mkdirSync(join(runs, run, "weights"), { recursive: true });
-    writeFileSync(join(runs, run, "weights", "best.pt"), "");
-    assert.equal(findDetector(dir, { RHINO_FACADE_PYTHON: py }).weights, join(runs, run, "weights", "best.pt"));
-  }
+    writeFileSync(best(run), "");
+  };
+  const found2 = () => findDetector(dir, { RHINO_FACADE_PYTHON: py }).weights;
+  train("all11s");
+  assert.equal(found2(), best("all11s"));
+  train("parts2m");
+  assert.equal(found2(), best("parts2m"));
+  train("parts11s");
+  assert.equal(found2(), best("parts2m") + delimiter + best("parts11s"));
+  // A list in RHINO_FACADE_WEIGHTS is checked file by file.
+  const env = { RHINO_FACADE_PYTHON: py, RHINO_FACADE_WEIGHTS: w + delimiter + join(dir, "missing.pt") };
+  assert.equal(findDetector(dir, env), null);
+  env.RHINO_FACADE_WEIGHTS = w + delimiter + best("all11s");
+  assert.equal(findDetector(dir, env).weights, env.RHINO_FACADE_WEIGHTS);
 });
 
 test("runDetector reads the last stdout line", async () => {

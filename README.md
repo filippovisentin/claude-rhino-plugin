@@ -176,6 +176,16 @@ The test photos never enter training: the 22 CMP facades Claude read blind, 66 h
 
 The parts model (`python tools/train_data.py parts`, then `train parts --model data/det-runs/yolo11m.pt --batch 4 --run parts2m`, YOLO11m) adds arches, oculi, pediments and finials from MonuMAI and Oxford photos. On unseen photos (`python tools/train_report.py report.md`, 2026-11-06) it scores mAP50 0.764 on CMP, 0.98 on modern facades, 0.83 on Oxford (all11s: 0.32) and 0.985 on monuments, and 0.62 pixel IoU on CMP against Claude's 0.52; it is the default when trained. Inference is about 15 ms per photo against 6 ms for YOLO11s.
 
+When `parts11s` is trained too, `detect_facade` runs both and fuses their boxes (`fuse_boxes` in `tools/facade_yolo.py`: overlapping boxes of a class averaged by confidence, the most confident member's score kept, parts2m counting double). `python tools/ensemble_report.py report.md` scores single models and fusions on the same unseen photos:
+
+| | CMP mAP50 | modern | Oxford | monuments | pixel IoU vs Claude (0.52) |
+|---|---|---|---|---|---|
+| parts2m | 0.742 | 0.982 | 0.813 | 0.988 | 0.619 |
+| parts11s | 0.744 | 0.980 | 0.730 | 0.998 | 0.601 |
+| fused, 2:1 (default) | 0.764 | 0.982 | 0.807 | 0.999 | 0.629 |
+
+Plain weighted boxes fusion, which averages scores over every member, reached 0.78 on CMP but moved Oxford between 0.76 and 0.85 with the members' threshold, so it is not the default. A list of weights in `RHINO_FACADE_WEIGHTS` (joined by `;` on Windows, `:` elsewhere) fuses any models, the first counting double.
+
 Draft plus Claude's own doors, shops and pillars: 0.63 on CMP. On four modern hznu photos scored through the whole straighten-and-read chain, openings 0.80 for the detector against 0.60 for Claude's readings. Claude still reads shops and pillars better. Licences: CMP is CC BY-SA, hznu CC BY 4.0, [CFP](https://github.com/wbw520/RTFP) states none, so a model trained with CFP is for personal use; train without `cfp` to get one you may share under CC BY-SA.
 
 Prompt scenarios live in `tools/scenarios/prompts.json` (table, chair, amphora, lamp, bookcase, ring, house, palazzo, spiral stair, straight stair, spiral stair with handrail, classic corner palazzo with mansard, villa with hip roof, Doric portico): each holds the prompt, the spec written for it and the expected size. `python tools/scenarios/run_prompts.py` checks them locally; `run_prompts.rhino(doc)` builds them in Rhino and compares sizes (all fourteen match). Default sizes for prompts that give none are in [docs/dimensions.md](docs/dimensions.md).
