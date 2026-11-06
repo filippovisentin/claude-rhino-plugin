@@ -236,6 +236,13 @@ What one photo cannot settle, found on the way and now built into `photo3d.py`:
   a curved face read as a plane cannot give the plan. The elevation (outline, roof line, floors,
   glazing) is measured; the plan depth stays an assumption, stated as such.
 
+`keep` checked again in Rhino 8.36 after it came back to main (2026-11-06): Rhino's boolean intersection
+returned nothing when one solid lay wholly inside the other (a sphere in a box) and when the two
+shared faces (two views of one building share its depth and ground), the normal case for `keep`.
+The builder now returns the inner solid in the first case and retries with the keep part grown by
+10x the tolerance in the second. Volumes against exact ones: box in box 125.0 (125), sphere in box
+4.189 (4.189), box in sphere 8.0 (8), front and side views 1606.07 (1605.93), front, side and plan
+1403.81 (1403.71), keep with a cut 120.0 (120); separate solids warn and keep the part whole.
 Still open: the side face has no glass skin of its own, panel joints are not drawn, the fold of the
 front near the spike is flat, and the plan (front curvature, depth) needs a second photo or a plan.
 

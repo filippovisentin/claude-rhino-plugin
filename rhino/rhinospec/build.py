@@ -67,6 +67,43 @@ def _outward(brep):
     return brep
 
 
+def _samples(brep):
+    """Points on a brep's surface: its vertices and the middle of every face."""
+    pts = [v.Location for v in brep.Vertices]
+    for f in brep.Faces:
+        u, v = f.Domain(0), f.Domain(1)
+        pts.append(f.PointAt(u.Mid, v.Mid))
+    return pts
+
+
+def _inside(brep, other, tol):
+    """brep lies wholly inside (or on) the closed brep other."""
+    return all(other.IsPointInside(pt, tol, False) for pt in _samples(brep))
+
+
+def _intersect(brep, keep, tol):
+    """The intersection of brep and keep, or None when they do not overlap. Rhino's boolean returns nothing in two
+    common cases, both handled here: one solid wholly inside the other (no surfaces cross), and
+    faces shared by both (two views of one building share its depth and ground): then keep is
+    retried enlarged by 10x the tolerance about its centre, which moves the shared faces off the
+    plane at the cost of that much accuracy."""
+    res = rg.Brep.CreateBooleanIntersection(brep, keep, tol)
+    if not res:
+        if _inside(brep, keep, tol):
+            return brep
+        if _inside(keep, brep, tol):
+            return keep
+        box = keep.GetBoundingBox(True)
+        size = max(box.Max.X - box.Min.X, box.Max.Y - box.Min.Y, box.Max.Z - box.Min.Z)
+        if size > 0:
+            grown = keep.DuplicateBrep()
+            grown.Transform(rg.Transform.Scale(box.Center, 1.0 + 20.0 * tol / size))
+            res = rg.Brep.CreateBooleanIntersection(brep, grown, tol)
+    if not res:
+        return None
+    return res[0] if len(res) == 1 else max(res, key=lambda b: b.GetVolume())
+
+
 def _extrude(curve, vec, tol):
     srf = rg.Surface.CreateExtrusion(curve, vec)
     if srf is None:
@@ -310,11 +347,11 @@ def build(spec, doc=None, redraw=True):
                 # (an elevation extruded through a side profile and a plan) is what they share
                 for k in p["keep"]:
                     kb = _placed(k, scale, tol)
-                    res = rg.Brep.CreateBooleanIntersection(brep, kb, tol) if kb is not None else None
-                    if not res:
+                    res = _intersect(brep, kb, tol) if kb is not None else None
+                    if res is None:
                         warnings.append("%s: keep failed, kept whole" % label)
                         break
-                    brep = res[0] if len(res) == 1 else max(res, key=lambda b: b.GetVolume())
+                    brep = res
             pieces = [brep]
             if p.get("cut"):
                 cutters = [c for c in (_placed(c, scale, tol) for c in p["cut"]) if c is not None]
