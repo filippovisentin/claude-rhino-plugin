@@ -1,7 +1,7 @@
 """Glass openings of a straightened facade as rectangles in metres, by colour: for curtain walls and
 free glazing patterns the facade detector was not trained on (strips, staggered panes).
 
-    data\\venv-det\\Scripts\\python.exe tools/glass_read.py FACADE.jpg W H OUT.json [--floor F] [--outline CALIB.json LINE H0]
+    data\\venv-det\\Scripts\\python.exe tools/dev/glass_read.py FACADE.jpg W H OUT.json [--floor F] [--outline CALIB.json LINE H0]
 
 FACADE.jpg  the face straightened by tools/rectify.py over the rectangle 0..W x 0..H metres (image
             top = H, bottom = ground)

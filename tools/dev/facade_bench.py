@@ -1,13 +1,13 @@
 """Facade benchmark on the CMP Facade Database (CC BY-SA, Tylecek & Sara, GCPR 2013).
 
-  python tools/facade_bench.py gt ID            annotation -> ground-truth spec (data/work/ID.gt.json)
-  python tools/facade_bench.py prep ID          resized photo for reading (data/work/ID.jpg)
-  python tools/facade_bench.py score ID PRED    per-class IoU against the annotation (px specs: in photo pixels)
-  python tools/facade_bench.py overlay ID PRED  draws the prediction over the photo (data/work/ID.overlay.jpg)
-  python tools/facade_bench.py sample N         N facade ids spread over the dataset
-  python tools/facade_bench.py errors ID PRED   error analysis of a px reading: per class, objects missed and
+  python tools/dev/facade_bench.py gt ID            annotation -> ground-truth spec (data/work/ID.gt.json)
+  python tools/dev/facade_bench.py prep ID          resized photo for reading (data/work/ID.jpg)
+  python tools/dev/facade_bench.py score ID PRED    per-class IoU against the annotation (px specs: in photo pixels)
+  python tools/dev/facade_bench.py overlay ID PRED  draws the prediction over the photo (data/work/ID.overlay.jpg)
+  python tools/dev/facade_bench.py sample N         N facade ids spread over the dataset
+  python tools/dev/facade_bench.py errors ID PRED   error analysis of a px reading: per class, objects missed and
                                                 invented, and the systematic offsets of the matched boxes
-  python tools/facade_bench.py crop ID x0 y0 x1 y1
+  python tools/dev/facade_bench.py crop ID x0 y0 x1 y1
                                                 zoomed crop of the original photo (data/work/ID.crop.jpg) for
                                                 reading thin elements; x0..y1 are pixels of data/work/ID.jpg
 

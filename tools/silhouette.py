@@ -31,6 +31,8 @@ import sys
 
 import numpy as np
 
+# run-tool starts Python with -I, which leaves this folder off sys.path: photo3d is imported from here
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # scene2 first: building mask IoU 0.824 against scene11s' 0.767 on 200 photos of the scene test split
 # (human building outlines), and an empty mask on 1 photo against 4.

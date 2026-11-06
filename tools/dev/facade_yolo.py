@@ -1,9 +1,9 @@
 """Local facade detector: CMP Facade DB -> YOLO dataset, and detections -> px facade spec.
 
-    python tools/facade_yolo.py dataset [hznu] [cfp]  # writes data/yolo/{images,labels}/{train,val,test} + cmp.yaml
-    python tools/facade_yolo.py spec ID WEIGHTS    # runs the detector on one CMP photo, prints a px spec
-    python tools/facade_yolo.py detect-image PATH WEIGHTS CONF   # any photo -> px draft (used by detect_facade)
-    python tools/facade_yolo.py compare WEIGHTS [CONF]  # detector vs Claude's blind readings on the test split
+    python tools/dev/facade_yolo.py dataset [hznu] [cfp]  # writes data/yolo/{images,labels}/{train,val,test} + cmp.yaml
+    python tools/dev/facade_yolo.py spec ID WEIGHTS    # runs the detector on one CMP photo, prints a px spec
+    python tools/dev/facade_yolo.py detect-image PATH WEIGHTS CONF   # any photo -> px draft (used by detect_facade)
+    python tools/dev/facade_yolo.py compare WEIGHTS [CONF]  # detector vs Claude's blind readings on the test split
 
 The test split is every CMP photo Claude has already read blind (data/work/<id>.pred.json), so
 detector and Claude are scored on the same photos with facade_bench. Those photos never enter

@@ -1,7 +1,7 @@
 """Ranks CMP photos by how clean the facade is: little vegetation in front, facade filling the
 frame, regular windows. Prints the best N ids with their metrics.
 
-  python tools/clean_pick.py N
+  python tools/dev/clean_pick.py N
 """
 import json
 import statistics

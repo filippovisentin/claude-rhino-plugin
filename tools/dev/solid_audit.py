@@ -5,7 +5,7 @@ From the MCP run_python tool (the script editor injects __rhino_doc__):
     ROOT = r"C:\\...\\claude-rhino-plugin"                       # this repository
     FILES = [r"C:\\...\\data\\work\\cmp_b0121.v3.json", ...]     # spec files to build
     OUT = r"C:\\...\\audit.json"                                 # report
-    exec(open(r"C:\\...\\tools\\solid_audit.py").read())
+    exec(open(r"C:\\...\\tools\\dev\\solid_audit.py").read())
 
 Each spec is built on the layer rhinospec::AUDIT (cleared before each build, removed at the end).
 Per spec the report holds the build's ok/warnings/floating, the object count and, per problem and

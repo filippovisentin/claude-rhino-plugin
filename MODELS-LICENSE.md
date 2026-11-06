@@ -10,7 +10,7 @@ Why:
   fall under that licence unless an Ultralytics Enterprise licence is held.
 - Part of the training data is licensed for research or non-commercial use only, among them
   LabelMeFacade, eTRIMS and ADE20K. Other sources (CMP, hznu_facade, Oxford, MonuMAI, Open Images)
-  are CC BY / CC BY-SA. `python tools/train_data.py sources` lists every dataset and its licence.
+  are CC BY / CC BY-SA. `python tools/dev/train_data.py sources` lists every dataset and its licence.
 
 Distributing the plugin outside the studio, or commercially, needs weights retrained only on data
 whose licence allows it, and a decision on the Ultralytics licence.

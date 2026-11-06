@@ -7,11 +7,11 @@
 
 Run with the detector environment (Ultralytics, OpenCV, CUDA): data\\venv-det\\Scripts\\python.exe
 
-  python tools/train_data.py sources                    datasets, licences, what is on disk
-  python tools/train_data.py download NAME [NAME ...]   monumai | oxford | seg-weights (needs network)
-  python tools/train_data.py scene [--limit N]          -> data/yolo-scene (+ scene.yaml)
-  python tools/train_data.py parts [--limit N] [--no-teacher]   -> data/yolo-parts (+ parts.yaml)
-  python tools/train_data.py train scene|parts [--epochs 120] [--batch 8] [--imgsz 1024] [--model PT] [--hours H]
+  python tools/dev/train_data.py sources                    datasets, licences, what is on disk
+  python tools/dev/train_data.py download NAME [NAME ...]   monumai | oxford | seg-weights (needs network)
+  python tools/dev/train_data.py scene [--limit N]          -> data/yolo-scene (+ scene.yaml)
+  python tools/dev/train_data.py parts [--limit N] [--no-teacher]   -> data/yolo-parts (+ parts.yaml)
+  python tools/dev/train_data.py train scene|parts [--epochs 120] [--batch 8] [--imgsz 1024] [--model PT] [--hours H]
 
 Training runs offline (YOLO_OFFLINE=1, settings and font in data/det-runs/cfg) into data/det-runs/
 <scene11s|parts11s>. Downloads are separate and only happen with `download`.
@@ -726,7 +726,7 @@ def train(kind, epochs=120, batch=8, imgsz=1024, model=None, hours=None, run=Non
         return train_style(epochs, batch, model, hours, run)
     data = os.path.join(root, "%s.yaml" % kind)
     if not os.path.exists(data):
-        sys.exit("build the dataset first: python tools/train_data.py %s" % kind)
+        sys.exit("build the dataset first: python tools/dev/train_data.py %s" % kind)
     _write_seen(root, run)
     with open(data) as fh:
         seg = fh.readline().strip() == "# task: segment"
@@ -849,7 +849,7 @@ def style_dataset():
 def train_style(epochs, batch, model, hours, run):
     root = os.path.join(DATA, "yolo-style")
     if not os.path.isdir(root):
-        sys.exit("build the dataset first: python tools/train_data.py style")
+        sys.exit("build the dataset first: python tools/dev/train_data.py style")
     _write_seen(root, run)
     weights = model or os.path.join(RUNS, "yolo11s-cls.pt")
     extra = {"time": hours} if hours else {}

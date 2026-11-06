@@ -46,3 +46,23 @@ class Layout(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class Docs(unittest.TestCase):
+    def test_no_doc_points_at_a_moved_tool_old_path(self):
+        """Copy-paste commands in the docs must name tools/dev/ for the moved scripts."""
+        import glob
+        import re
+        names = "|".join(re.escape(f[:-3]) if f.endswith(".py") else re.escape(f) for f in MOVED)
+        old = re.compile(r"tools[/\\]+(?:%s)\b" % names)
+        files = [os.path.join(ROOT, f) for f in ("README.md", "MODELS-LICENSE.md")]
+        files += glob.glob(os.path.join(ROOT, "docs", "*.md")) + glob.glob(os.path.join(ROOT, "skills", "*", "*.md"))
+        files += glob.glob(os.path.join(ROOT, "tests", "fixtures", "**", "*.md"), recursive=True)
+        files += glob.glob(os.path.join(DEV, "**", "*.py"), recursive=True)
+        bad = []
+        for f in files:
+            with open(f, encoding="utf-8") as fh:
+                for i, line in enumerate(fh, 1):
+                    if old.search(line):
+                        bad.append("%s:%d: %s" % (os.path.relpath(f, ROOT), i, line.strip()[:100]))
+        self.assertEqual(bad, [])

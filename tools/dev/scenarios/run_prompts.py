@@ -2,7 +2,7 @@
 size (spec units). Locally: validity and floating parts. In Rhino (rhino(doc)): builds each one and
 compares the real bounding box with the expected size.
 
-  python tools/scenarios/run_prompts.py         local checks only
+  python tools/dev/scenarios/run_prompts.py         local checks only
 """
 import json
 import os

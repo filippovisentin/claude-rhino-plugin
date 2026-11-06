@@ -10,7 +10,7 @@ Straightens a facade photo without reading its corners: MoGe-2 (microsoft/MoGe, 
 pixel a 3D point in metres and a surface normal; the dominant wall plane is fitted to them and a
 virtual camera turned to face it squarely (homography K R K^-1, the same camera rotated).
 
-    data\\venv-det\\Scripts\\python.exe tools/auto_rectify.py PHOTO OUT.jpg [--side 1600]
+    data\\venv-det\\Scripts\\python.exe tools/dev/auto_rectify.py PHOTO OUT.jpg [--side 1600]
 
 Prints {"H": photo -> OUT homography, "normal", "tilt_deg", "pan_deg", "inliers", "m_per_px"}:
 m_per_px is the metric size of one OUT pixel on the wall plane, from MoGe's metric depth. The

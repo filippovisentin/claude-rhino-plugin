@@ -29,3 +29,17 @@ class SceneWeights(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+@unittest.skipIf(S is None, "needs numpy")
+class IsolatedImports(unittest.TestCase):
+    def test_silhouette_finds_photo3d_under_python_I(self):
+        """run-tool starts Python with -I, which leaves tools/ off sys.path: silhouette.py must add it
+        itself, or compare --calib fails on `import photo3d`."""
+        import subprocess
+        path = os.path.join(ROOT, "tools", "silhouette.py")
+        code = ("import importlib.util as u; s = u.spec_from_file_location('silhouette', %r); "
+                "m = u.module_from_spec(s); s.loader.exec_module(m); import photo3d; print('ok')" % path)
+        p = subprocess.run([sys.executable, "-I", "-c", code], capture_output=True, text=True, timeout=60,
+                           cwd=tempfile.gettempdir())
+        self.assertEqual(p.stdout.strip(), "ok", p.stderr[-300:])

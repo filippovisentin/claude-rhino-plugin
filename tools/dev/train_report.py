@@ -1,6 +1,6 @@
-"""Report for the parts and scene models (tools/train_data.py), against yesterday's detectors.
+"""Report for the parts and scene models (tools/dev/train_data.py), against yesterday's detectors.
 
-    data\\venv-det\\Scripts\\python.exe tools/train_report.py OUT.md [NEW_PARTS_RUN] [OLD_RUN ...]
+    data\\venv-det\\Scripts\\python.exe tools/dev/train_report.py OUT.md [NEW_PARTS_RUN] [OLD_RUN ...]
 
 Fair by construction:
   - only photos no compared model has trained or validated on (today's test split minus anything

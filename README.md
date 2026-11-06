@@ -206,7 +206,7 @@ The scene model (`python tools/dev/train_data.py scene`, then `train scene --run
 
 Draft plus Claude's own doors, shops and pillars: 0.63 on CMP. On four modern hznu photos scored through the whole straighten-and-read chain, openings 0.80 for the detector against 0.60 for Claude's readings. Claude still reads shops and pillars better. Licences: CMP is CC BY-SA, hznu CC BY 4.0, [CFP](https://github.com/wbw520/RTFP) states none, so a model trained with CFP is for personal use; train without `cfp` to get one you may share under CC BY-SA.
 
-Prompt scenarios live in `tools/scenarios/prompts.json` (table, chair, amphora, lamp, bookcase, ring, house, palazzo, spiral stair, straight stair, spiral stair with handrail, classic corner palazzo with mansard, villa with hip roof, Doric portico): each holds the prompt, the spec written for it and the expected size. `python tools/scenarios/run_prompts.py` checks them locally; `run_prompts.rhino(doc)` builds them in Rhino and compares sizes (all fourteen match). Default sizes for prompts that give none are in [docs/dimensions.md](docs/dimensions.md).
+Prompt scenarios live in `tools/dev/scenarios/prompts.json` (table, chair, amphora, lamp, bookcase, ring, house, palazzo, spiral stair, straight stair, spiral stair with handrail, classic corner palazzo with mansard, villa with hip roof, Doric portico): each holds the prompt, the spec written for it and the expected size. `python tools/dev/scenarios/run_prompts.py` checks them locally; `run_prompts.rhino(doc)` builds them in Rhino and compares sizes (all fourteen match). Default sizes for prompts that give none are in [docs/dimensions.md](docs/dimensions.md).
 
 ## License
 

@@ -1,6 +1,6 @@
 """Random valid rhinospec specs, for stress-testing the Rhino builder.
 
-  python tools/fuzz_specs.py N SEED OUT.jsonl
+  python tools/dev/fuzz_specs.py N SEED OUT.jsonl
 
 Each line is "id<TAB>spec-json". Every spec passes validation; whatever then fails in Rhino is a
 builder bug (or a geometry case the planner should avoid), not a spec error.
