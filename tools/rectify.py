@@ -1,6 +1,6 @@
 """Straightens a facade photographed at an angle, so it can be read like an elevation.
 
-  python tools/rectify.py IMAGE "x,y x,y x,y x,y" OUT [--ratio W/H] [--size 768]
+  node "<plugin>/scripts/run-tool.mjs" rectify IMAGE "x,y x,y x,y x,y" OUT [--ratio W/H] [--size 768]
 
 The four points are the facade corners in IMAGE pixels: top-left, top-right, bottom-right,
 bottom-left. OUT shows only the facade, straightened, long side --size pixels. --ratio is the

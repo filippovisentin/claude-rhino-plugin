@@ -3,11 +3,12 @@
 The facade benchmark measures elements on a flat elevation; this measures the whole form: outline,
 proportions, curves. Run with the detector environment (Ultralytics, OpenCV):
 
-    data\\venv-det\\Scripts\\python.exe tools/silhouette.py mask PHOTO OUT.png [--point x,y] [--box x0,y0,x1,y1] [--conf 0.25]
-    data\\venv-det\\Scripts\\python.exe tools/silhouette.py compare MESH.json MASK.png OUT_PREFIX
+    node "<plugin>/scripts/run-tool.mjs" silhouette mask PHOTO OUT.png [--point x,y] [--box x0,y0,x1,y1] [--conf 0.25]
+    node "<plugin>/scripts/run-tool.mjs" silhouette compare MESH.json MASK.png OUT_PREFIX
         [--az A] [--el E] [--fov F] [--search]
 
-mask     the building in the photo, from the scene model (data/det-runs/scene2, else scene11s): every building
+mask     the building in the photo, from the scene model (the one installed by the setup, else
+         data/det-runs/scene2, else scene11s): every building
          instance, or only the one under --point (pixels) when neighbours are in the frame.
 compare  projects the model's mesh (MESH.json from tools/export_mesh.py, metres, Z up) with a
          camera at azimuth A (0 = looking from -Y, the facade's front; 90 = from +X), elevation E

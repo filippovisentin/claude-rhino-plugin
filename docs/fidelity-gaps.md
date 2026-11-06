@@ -144,7 +144,7 @@ what it means to (window and door surrounds, 15 cm outside the opening). Found a
   above the opening under it, or goes when less than 8 cm is left (0 % left; 12 of 172 balconies keep
   none, those across French windows).
 
-Built in Rhino 8 (`tools/solid_audit.py`: 15 real readings and 40 random specs, 12554 objects):
+Built in Rhino 8 (`tools/dev/solid_audit.py`: 15 real readings and 40 random specs, 12554 objects):
 
 - Arched and round surrounds and oculus frames were rings of short segments; their union came out
   open and non-manifold (33 objects). Each band is now one prism with the opening cut through it,
@@ -205,7 +205,7 @@ is a volume first. Method for these, the same for every building:
    on its face's plane.
 3. Volume: each measured outline is a `prism` through the building; the volume is what they share
    (`keep`, new: a boolean intersection). Skin: the facade (`facade` with the measured `top`) set in
-   front of it, its glazing read by `tools/glass_read.py` on the face straightened with the same camera.
+   front of it, its glazing read by `tools/dev/glass_read.py` on the face straightened with the same camera.
 4. Check: `tools/silhouette.py compare --calib` draws the model with the photo's own camera, no
    fitting; trees, cars and people are left out of the score. Side by side in Rhino from
    `rhino_view`.
@@ -257,4 +257,4 @@ front near the spike is flat, and the plan (front curvature, depth) needs a seco
   pointing in); used in a `cut`, as the part or as the cutter, the difference turned into a union
   without a warning. Every extruded, lofted and revolved solid is now turned outward. Checked in
   Rhino 8: all thirteen primitive types outward, a cut through a clockwise prism removes what it
-  should, and `tools/solid_audit.py` on four real readings (1808 objects) finds nothing.
+  should, and `tools/dev/solid_audit.py` on four real readings (1808 objects) finds nothing.
