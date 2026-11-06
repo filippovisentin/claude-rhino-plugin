@@ -16,7 +16,8 @@ import random
 import shutil
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+_HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path[:0] = [_HERE, os.path.dirname(_HERE)]  # tools/dev, then the runtime tools
 import facade_bench as FB  # noqa: E402
 from facade_detect import *  # noqa: E402,F401,F403  (runtime detector, re-exported)
 from facade_detect import NAMES, _MODELS, _expose, _hood, _iou  # noqa: E402,F401

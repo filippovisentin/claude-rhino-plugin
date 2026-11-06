@@ -27,8 +27,8 @@ import numpy as np
 from PIL import Image, ImageDraw
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-ROOT = os.path.dirname(HERE)
-sys.path.insert(0, HERE)
+ROOT = os.path.dirname(os.path.dirname(HERE))  # tools/dev -> repo
+sys.path[:0] = [HERE, os.path.dirname(HERE)]  # tools/dev, then the runtime tools
 import rectify as rc  # noqa: E402
 
 WORK = os.path.join(ROOT, "data", "work")

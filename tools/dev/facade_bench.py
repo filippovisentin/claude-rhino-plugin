@@ -21,7 +21,7 @@ import re
 import statistics
 import sys
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # tools/dev -> repo
 sys.path.insert(0, os.path.join(ROOT, "rhino"))
 from rhinospec import spec as S  # noqa: E402
 from rhinospec.plan import facade_elements  # noqa: E402

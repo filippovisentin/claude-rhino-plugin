@@ -4,6 +4,7 @@ import sys
 import unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "tools"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "tools", "dev"))
 import train_data as TD  # noqa: E402
 
 VOC = """<annotation><size><width>1000</width><height>500</height><depth>3</depth></size>

@@ -33,7 +33,8 @@ import sys
 import time
 import xml.etree.ElementTree as ET
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+_HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path[:0] = [_HERE, os.path.dirname(_HERE)]  # tools/dev, then the runtime tools
 import facade_bench as FB  # noqa: E402
 import facade_yolo as FY  # noqa: E402
 

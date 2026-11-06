@@ -14,7 +14,8 @@ import os
 import sys
 import time
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+_HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path[:0] = [_HERE, os.path.dirname(_HERE)]  # tools/dev, then the runtime tools
 import facade_yolo as Y  # noqa: E402
 
 RUNS = os.path.join(Y.FB.ROOT, "data", "det-runs")

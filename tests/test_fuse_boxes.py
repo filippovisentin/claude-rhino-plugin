@@ -4,6 +4,7 @@ import sys
 import unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "tools"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "tools", "dev"))
 import facade_detect as FY  # noqa: E402
 import ensemble_report as ER  # noqa: E402
 
