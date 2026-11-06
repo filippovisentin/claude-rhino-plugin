@@ -19,6 +19,7 @@ It adds:
 - Rhino 8 with the **Rhino-MCP-Platform** package (in Rhino: `_PackageManager`, then search for it)
 - Node.js 18 or newer on `PATH`
 - Claude Code
+- Access to this repository: it is private, so ask to be added as a collaborator, then sign in once with the [GitHub CLI](https://cli.github.com) so `git` can clone it (`gh auth login`, then `gh auth setup-git`)
 
 Tested on Windows 11 (x64) with Rhino-MCP-Platform 0.3.0. The macOS path lookup is written but not yet tested.
 
@@ -37,6 +38,8 @@ claude plugin install rhino@claude-rhino
 ```
 
 Start a new Claude session afterwards so the MCP server loads.
+
+Modelling from text, prompts and images works right away. For the facade detector and the other trained models (Windows with an NVIDIA GPU, or `--cpu`), run `node scripts/setup.mjs` once from the plugin folder, or ask Claude to "set up the rhino plugin's detector"; see [On a studio PC](#on-a-studio-pc).
 
 ### Other MCP clients (your own Claude or ChatGPT plan)
 
@@ -165,7 +168,7 @@ The trained weights are published as assets of a release of this private reposit
 Setting up a colleague's PC:
 
 1. Add them to this GitHub repository.
-2. They run `gh auth login` (and install [`uv`](https://docs.astral.sh/uv/getting-started/installation/) if missing).
+2. They run `gh auth login` and `gh auth setup-git` (and install [`uv`](https://docs.astral.sh/uv/getting-started/installation/) if missing).
 3. They install the plugin (`claude plugin marketplace add filippovisentin/claude-rhino-plugin`, then `claude plugin install rhino@claude-rhino`).
 4. From the plugin folder: `node scripts/setup.mjs`.
 5. `node scripts/doctor.mjs` shows three `OK` detector lines (python, models, gpu); then give Claude a facade photo.
