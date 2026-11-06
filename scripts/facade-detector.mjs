@@ -11,6 +11,7 @@
 import { execFile } from "node:child_process";
 import { existsSync, statSync, realpathSync } from "node:fs";
 import { delimiter, extname, isAbsolute, join } from "node:path";
+import { installedDetector } from "./detector-install.mjs";
 
 export const IMAGE_EXT = new Set([".jpg", ".jpeg", ".png", ".webp", ".bmp"]);
 export const MAX_IMAGE_BYTES = 50 * 1024 * 1024;
@@ -40,7 +41,21 @@ export const DETECT_TOOL = {
   },
 };
 
+// Where the detector comes from, first complete one wins: RHINO_FACADE_PYTHON / RHINO_FACADE_WEIGHTS
+// (source "env"), the install made by scripts/setup.mjs under %LOCALAPPDATA%\claude-rhino
+// ("installed", only when its setup.json matches models.json), the repo's data/ folder ("repo").
 export function findDetector(repoRoot, env = process.env) {
+  const custom = Boolean(env.RHINO_FACADE_PYTHON || env.RHINO_FACADE_WEIGHTS);
+  if (!custom) {
+    const inst = installedDetector(repoRoot, env);
+    const script = join(repoRoot, "tools", "facade_yolo.py");
+    if (inst && existsSync(script)) return { ...inst, script, source: "installed" };
+  }
+  const det = findRepoDetector(repoRoot, env);
+  return det && { ...det, source: custom ? "env" : "repo", version: null, model: custom ? "custom" : "repo" };
+}
+
+function findRepoDetector(repoRoot, env) {
   const python = env.RHINO_FACADE_PYTHON ||
     join(repoRoot, "data", "venv-det", process.platform === "win32" ? "Scripts/python.exe" : "bin/python");
   const run = (name) => join(repoRoot, "data", "det-runs", name, "weights", "best.pt");
@@ -76,7 +91,7 @@ export function checkConf(conf) {
 
 // Resolves with the draft's JSON text; rejects with a short message.
 export function runDetector(det, image, conf, run = execFile) {
-  const env = { ...process.env };
+  const env = { ...process.env, YOLO_OFFLINE: "1" };
   if (det.configDir) env.YOLO_CONFIG_DIR = det.configDir;
   return new Promise((resolve, reject) => {
     run(det.python, ["-I", det.script, "detect-image", image, det.weights, String(conf)],
@@ -87,6 +102,7 @@ export function runDetector(det, image, conf, run = execFile) {
         try {
           const out = JSON.parse(line);
           if (!Array.isArray(out?.els) || !Array.isArray(out?.img)) throw new Error();
+          if (det.model) out.model = det.model;
           resolve(JSON.stringify(out));
         } catch { reject(new Error("detector returned no draft")); }
       });
