@@ -1,6 +1,6 @@
 """Refines a facade spec read off a photo, using the photo itself. No tokens: pure numpy.
 
-  python tools/facade_refine.py IMAGE SPEC OUT [--find window,door] [--thr 0.6] [--snap]
+  python tools/dev/facade_refine.py IMAGE SPEC OUT [--find window,door] [--thr 0.6] [--snap]
 
 IMAGE is the photo the boxes were read from (same pixels: use the one Claude looked at).
 SPEC holds one facade part with "px". Two steps:

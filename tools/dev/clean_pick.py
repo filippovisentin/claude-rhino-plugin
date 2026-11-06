@@ -1,7 +1,7 @@
 """Ranks CMP photos by how clean the facade is: little vegetation in front, facade filling the
 frame, regular windows. Prints the best N ids with their metrics.
 
-  python tools/clean_pick.py N
+  python tools/dev/clean_pick.py N
 """
 import json
 import statistics
@@ -10,7 +10,8 @@ import sys
 import numpy as np
 from PIL import Image
 
-sys.path.insert(0, __import__("os").path.dirname(__import__("os").path.abspath(__file__)))
+_HERE = __import__("os").path.dirname(__import__("os").path.abspath(__file__))
+sys.path[:0] = [_HERE, __import__("os").path.dirname(_HERE)]  # tools/dev, then the runtime tools
 import facade_bench as fb  # noqa: E402
 
 

@@ -1,7 +1,7 @@
 """From one photo to measured dimensions: the camera from the building's corners, then every outline
 read on the photo turned into metres on the plane of its face.
 
-    python tools/photo3d.py solve READING.json OUT.json
+    node "<plugin>/scripts/run-tool.mjs" photo3d solve READING.json OUT.json
 
 READING.json (pixels of the photo, metres, Z up, the building's front along +X at y = 0):
 

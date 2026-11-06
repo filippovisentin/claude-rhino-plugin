@@ -11,7 +11,7 @@ const rhinoDir = fileURLToPath(new URL("../rhino", import.meta.url));
 const dir = mkdtempSync(join(tmpdir(), "facade-det-"));
 const photo = join(dir, "front.jpg");
 writeFileSync(photo, "jpeg");
-const det = { python: "py", weights: "w.pt", script: "facade_yolo.py", configDir: null };
+const det = { python: "py", weights: "w.pt", script: "facade_detect.py", configDir: null };
 const call = (id, args) => JSON.stringify({ jsonrpc: "2.0", id, method: "tools/call", params: { name: "detect_facade", arguments: args } });
 const draft = '{"img":[10,20],"els":[{"k":"window","box":[1,2,3,4]}],"review":"r"}';
 
@@ -37,7 +37,7 @@ test("runs locally with the path as one argv entry, never through the router or 
   assert.equal(reply.id, "d1");
   assert.deepEqual(JSON.parse(reply.result.content[0].text).img, [10, 20]);
   assert.equal(seen[0].file, "py");
-  assert.deepEqual(seen[0].args.slice(0, 3), ["-I", "facade_yolo.py", "detect-image"]);
+  assert.deepEqual(seen[0].args.slice(0, 3), ["-I", "facade_detect.py", "detect-image"]);
   assert.equal(seen[0].args[4], "w.pt");
   assert.equal(seen[0].args[5], "0.3");
   assert.equal(seen[0].opts.shell, false);
@@ -84,7 +84,7 @@ test("helpers: defaults and detector discovery", () => {
   const py = join(dir, "py.exe"), w = join(dir, "w.pt");
   writeFileSync(py, ""); writeFileSync(w, "");
   mkdirSync(join(dir, "tools"));
-  writeFileSync(join(dir, "tools", "facade_yolo.py"), "");
+  writeFileSync(join(dir, "tools", "facade_detect.py"), "");
   const found = findDetector(dir, { RHINO_FACADE_PYTHON: py, RHINO_FACADE_WEIGHTS: w });
   assert.equal(found.python, py);
   assert.equal(found.weights, w);

@@ -1,5 +1,5 @@
 // detect_facade: runs the local facade detector (YOLO trained on facade datasets, see
-// tools/facade_yolo.py) on a photo and returns a px facade draft for the model to correct.
+// tools/facade_detect.py) on a photo and returns a px facade draft for the model to correct.
 // It is offered only when a Python with ultralytics and trained weights are present:
 //   RHINO_FACADE_PYTHON   python executable (default data/venv-det in this repo)
 //   RHINO_FACADE_WEIGHTS  weights file, or several joined by the path delimiter (";" on Windows) to fuse
@@ -11,6 +11,7 @@
 import { execFile } from "node:child_process";
 import { existsSync, statSync, realpathSync } from "node:fs";
 import { delimiter, extname, isAbsolute, join } from "node:path";
+import { installState, installedDetector } from "./detector-install.mjs";
 
 export const IMAGE_EXT = new Set([".jpg", ".jpeg", ".png", ".webp", ".bmp"]);
 export const MAX_IMAGE_BYTES = 50 * 1024 * 1024;
@@ -40,7 +41,22 @@ export const DETECT_TOOL = {
   },
 };
 
+// Where the detector comes from, first complete one wins: RHINO_FACADE_PYTHON / RHINO_FACADE_WEIGHTS
+// (source "env"), the install made by scripts/setup.mjs under %LOCALAPPDATA%\claude-rhino
+// ("installed", only when its setup.json matches models.json), the repo's data/ folder ("repo").
 export function findDetector(repoRoot, env = process.env) {
+  const custom = Boolean(env.RHINO_FACADE_PYTHON || env.RHINO_FACADE_WEIGHTS);
+  if (!custom) {
+    const inst = installedDetector(repoRoot, env);
+    const script = join(repoRoot, "tools", "facade_detect.py");
+    // ready(): a rerun of the setup may replace this install while the plugin runs
+    if (inst && existsSync(script)) return { ...inst, script, source: "installed", ready: () => installState(repoRoot, env).state === "ok" };
+  }
+  const det = findRepoDetector(repoRoot, env);
+  return det && { ...det, source: custom ? "env" : "repo", version: null, model: custom ? "custom" : "repo" };
+}
+
+function findRepoDetector(repoRoot, env) {
   const python = env.RHINO_FACADE_PYTHON ||
     join(repoRoot, "data", "venv-det", process.platform === "win32" ? "Scripts/python.exe" : "bin/python");
   const run = (name) => join(repoRoot, "data", "det-runs", name, "weights", "best.pt");
@@ -48,7 +64,7 @@ export function findDetector(repoRoot, env = process.env) {
   const weights = env.RHINO_FACADE_WEIGHTS ||
     (fused.every((p) => existsSync(p)) ? fused.join(delimiter) : null) ||
     DEFAULT_RUNS.map(run).find((p) => existsSync(p)) || run("all11s");
-  const script = join(repoRoot, "tools", "facade_yolo.py");
+  const script = join(repoRoot, "tools", "facade_detect.py");
   if (![python, ...weights.split(delimiter).filter(Boolean), script].every((p) => existsSync(p))) return null;
   const cfg = join(repoRoot, "data", "det-runs", "cfg");
   return { python, weights, script, configDir: existsSync(cfg) ? cfg : null };
@@ -76,7 +92,10 @@ export function checkConf(conf) {
 
 // Resolves with the draft's JSON text; rejects with a short message.
 export function runDetector(det, image, conf, run = execFile) {
-  const env = { ...process.env };
+  if (det.ready && !det.ready()) {
+    return Promise.reject(new Error("the detector is being reinstalled by node scripts/setup.mjs: try again when the setup has finished"));
+  }
+  const env = { ...process.env, YOLO_OFFLINE: "1" };
   if (det.configDir) env.YOLO_CONFIG_DIR = det.configDir;
   return new Promise((resolve, reject) => {
     run(det.python, ["-I", det.script, "detect-image", image, det.weights, String(conf)],
@@ -87,6 +106,7 @@ export function runDetector(det, image, conf, run = execFile) {
         try {
           const out = JSON.parse(line);
           if (!Array.isArray(out?.els) || !Array.isArray(out?.img)) throw new Error();
+          if (det.model) out.model = det.model;
           resolve(JSON.stringify(out));
         } catch { reject(new Error("detector returned no draft")); }
       });

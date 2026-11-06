@@ -105,15 +105,15 @@ Runs `node --test` (result unwrapping, version ordering, config conflicts, launc
 
 ## Facade benchmark
 
-`tools/facade_bench.py` measures image-to-3D on the [CMP Facade Database](https://cmp.felk.cvut.cz/~tylecr1/facade/) (606 annotated facades, CC BY-SA, Tyleček & Šára, GCPR 2013). The dataset isn't in the repository: download and unzip it into `data/cmp/` (ignored by git).
+`tools/dev/facade_bench.py` measures image-to-3D on the [CMP Facade Database](https://cmp.felk.cvut.cz/~tylecr1/facade/) (606 annotated facades, CC BY-SA, Tyleček & Šára, GCPR 2013). The dataset isn't in the repository: download and unzip it into `data/cmp/` (ignored by git).
 
 ```bash
-python tools/facade_bench.py prep cmp_b0101                         # resized photo to read
-python tools/facade_bench.py score cmp_b0101 data/work/pred.json    # per-class IoU against the annotation
-python tools/facade_bench.py gt cmp_b0101                           # annotation as a facade spec
+python tools/dev/facade_bench.py prep cmp_b0101                         # resized photo to read
+python tools/dev/facade_bench.py score cmp_b0101 data/work/pred.json    # per-class IoU against the annotation
+python tools/dev/facade_bench.py gt cmp_b0101                           # annotation as a facade spec
 ```
 
-All 606 annotations, converted to specs, build in Rhino without errors (about 0.1 s and 125 solids per facade). `tools/fuzz_specs.py N SEED OUT` writes random valid specs (every primitive, arches, pediments, volumes, cuts, mm/cm/m); 800 of them, about 125,000 solids, build with no geometry failures. `tools/clean_pick.py N` ranks the photos by how clean the facade is (little vegetation, facade filling the frame, regular windows), which is the easiest set to start from. `tools/facade_refine.py` (template matching and edge snapping) is experimental: on the photos measured so far it lowered accuracy, see its docstring.
+All 606 annotations, converted to specs, build in Rhino without errors (about 0.1 s and 125 solids per facade). `tools/dev/fuzz_specs.py N SEED OUT` writes random valid specs (every primitive, arches, pediments, volumes, cuts, mm/cm/m); 800 of them, about 125,000 solids, build with no geometry failures. `tools/dev/clean_pick.py N` ranks the photos by how clean the facade is (little vegetation, facade filling the frame, regular windows), which is the easiest set to start from. `tools/dev/facade_refine.py` (template matching and edge snapping) is experimental: on the photos measured so far it lowered accuracy, see its docstring.
 
 Readings by Claude, scored in photo pixels (window IoU / all openings / mean over classes):
 
@@ -137,7 +137,7 @@ Error-driven loop (`facade_bench.py errors` lists missed and invented objects an
 
 ### Ordinary photos
 
-`tools/photo_bench.py` scores readings of people's street photos, perspective and clutter included, against [LabelMeFacade](https://github.com/cvjena/labelmefacade) (945 LabelMe photos with window/door label maps, research use only; Fröhlich, Rodner, Denzler, ICPR 2010) and [hznu_facade](https://data.mendeley.com/datasets/k387xkyc5f/1) (624 Hangzhou photos with window/door polygons and ground-truth homographies, CC BY 4.0). Download them into `data/labelmefacade` and `data/hznu`. When a photo was straightened first (`photo_bench.py rect`), the boxes read on the straight image are projected back through the inverse homography, so the score covers the whole chain: corners, straightening, reading.
+`tools/dev/photo_bench.py` scores readings of people's street photos, perspective and clutter included, against [LabelMeFacade](https://github.com/cvjena/labelmefacade) (945 LabelMe photos with window/door label maps, research use only; Fröhlich, Rodner, Denzler, ICPR 2010) and [hznu_facade](https://data.mendeley.com/datasets/k387xkyc5f/1) (624 Hangzhou photos with window/door polygons and ground-truth homographies, CC BY 4.0). Download them into `data/labelmefacade` and `data/hznu`. When a photo was straightened first (`photo_bench.py rect`), the boxes read on the straight image are projected back through the inverse homography, so the score covers the whole chain: corners, straightening, reading.
 
 | photo | how it was read | windows | door | openings |
 |---|---|---|---|---|
@@ -154,15 +154,31 @@ Straightening from four read corners against hznu's ground-truth homography (c_0
 
 ### Local facade detector (optional)
 
-A YOLO detector trained on your own machine reads facade elements in a few milliseconds and hands Claude a draft to correct (`detect_facade` tool). It is offered only when a Python with `ultralytics` and trained weights exist (by default `data/venv-det` and the first of `data/det-runs/parts2m`, `parts11s`, `all11s` with `weights/best.pt`, or `RHINO_FACADE_PYTHON` and `RHINO_FACADE_WEIGHTS`). Nothing is downloaded at run time and nothing leaves the machine.
+A YOLO detector reads facade elements in a few milliseconds and hands Claude a draft to correct (`detect_facade` tool). It is offered only when a Python with `ultralytics` and trained weights exist, looked up in this order: `RHINO_FACADE_PYTHON` and `RHINO_FACADE_WEIGHTS`; the install made by `node scripts/setup.mjs` under `%LOCALAPPDATA%\claude-rhino` (used only when it matches `models.json` and passed its self-test); `data/venv-det` with the first of `data/det-runs/parts2m`, `parts11s`, `all11s` (`weights/best.pt`) on the machine that trains them. It runs on the GPU when there is one and on the CPU otherwise (about 0.4 s per photo; `RHINO_FACADE_DEVICE=cpu` forces it), and the draft says which (`device`) and which models (`model`). Nothing is downloaded at run time and nothing leaves the machine.
+
+The plugin's own tools (straightening, building outline, camera solve, overlay and zoomed crop) run with the detector's Python through one command, which accepts only those tools: `node "<plugin>/scripts/run-tool.mjs" rectify|photo3d|silhouette|overlay|crop ...`. Training, benchmarks and experiments are in `tools/dev/` and need the datasets in `data/`.
+
+#### On a studio PC
+
+The trained weights are published as assets of a release of this private repository; `models.json` names the release and the sha256 of every file, and `MODELS-LICENSE.md` limits them to internal use. `node scripts/setup.mjs` (from the plugin folder) checks the NVIDIA driver (570 or newer), creates a pinned Python with `uv` in `%LOCALAPPDATA%\claude-rhino\venv` (about 8 GB with PyTorch for CUDA 12.8; `--cpu` installs the CPU build, about 2 GB), downloads the weights with `gh`, keeps them only if their sha256 matches, and runs the detector on `tests/fixtures/detector` against its reference draft. Plugin updates don't touch that folder; running the setup again skips what is done and fetches only new models.
+
+Setting up a colleague's PC:
+
+1. Add them to this GitHub repository.
+2. They run `gh auth login` (and install [`uv`](https://docs.astral.sh/uv/getting-started/installation/) if missing).
+3. They install the plugin (`claude plugin marketplace add filippovisentin/claude-rhino-plugin`, then `claude plugin install rhino@claude-rhino`).
+4. From the plugin folder: `node scripts/setup.mjs`.
+5. `node scripts/doctor.mjs` shows three `OK` detector lines (python, models, gpu); then give Claude a facade photo.
+
+Training (below) stays on the machine with the datasets.
 
 ```bash
 python -m venv data/venv-det
 data/venv-det/Scripts/python -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128
 data/venv-det/Scripts/python -m pip install ultralytics
-python tools/facade_yolo.py dataset hznu cfp          # CMP + hznu + CFP -> data/yolo-all
+python tools/dev/facade_yolo.py dataset hznu cfp          # CMP + hznu + CFP -> data/yolo-all
 data/venv-det/Scripts/yolo detect train model=yolo11s.pt data=data/yolo-all/cmp.yaml imgsz=1024 epochs=120 patience=30 batch=8 project=data/det-runs name=all11s
-python tools/facade_report.py report.md cmp11s all11s  # same test photos for every model
+python tools/dev/facade_report.py report.md cmp11s all11s  # same test photos for every model
 ```
 
 The test photos never enter training: the 22 CMP facades Claude read blind, 66 held-out hznu facades and 60 CFP street views. Pixel IoU per element on the 22 CMP facades, and window+door mAP50 on photos of other cities:
@@ -174,9 +190,9 @@ The test photos never enter training: the 22 CMP facades Claude read blind, 66 h
 | detector, CMP + hznu | 0.62 | 0.84 | 0.56 | 0.49 | 0.58 | 0.67 | 0.59 |
 | detector, CMP + hznu + CFP | 0.62 | 0.83 | 0.60 | 0.53 | 0.60 | 0.64 | 0.71 |
 
-The parts model (`python tools/train_data.py parts`, then `train parts --model data/det-runs/yolo11m.pt --batch 4 --run parts2m`, YOLO11m) adds arches, oculi, pediments and finials from MonuMAI and Oxford photos. On unseen photos (`python tools/train_report.py report.md`, 2026-11-06) it scores mAP50 0.764 on CMP, 0.98 on modern facades, 0.83 on Oxford (all11s: 0.32) and 0.985 on monuments, and 0.62 pixel IoU on CMP against Claude's 0.52; it is the default when trained. Inference is about 15 ms per photo against 6 ms for YOLO11s.
+The parts model (`python tools/dev/train_data.py parts`, then `train parts --model data/det-runs/yolo11m.pt --batch 4 --run parts2m`, YOLO11m) adds arches, oculi, pediments and finials from MonuMAI and Oxford photos. On unseen photos (`python tools/dev/train_report.py report.md`, 2026-11-06) it scores mAP50 0.764 on CMP, 0.98 on modern facades, 0.83 on Oxford (all11s: 0.32) and 0.985 on monuments, and 0.62 pixel IoU on CMP against Claude's 0.52; it is the default when trained. Inference is about 15 ms per photo against 6 ms for YOLO11s.
 
-When `parts11s` is trained too, `detect_facade` runs both and fuses their boxes (`fuse_boxes` in `tools/facade_yolo.py`: overlapping boxes of a class averaged by confidence, the most confident member's score kept, parts2m counting double). `python tools/ensemble_report.py report.md` scores single models and fusions on the same unseen photos:
+When `parts11s` is trained too, `detect_facade` runs both and fuses their boxes (`fuse_boxes` in `tools/dev/facade_yolo.py`: overlapping boxes of a class averaged by confidence, the most confident member's score kept, parts2m counting double). `python tools/dev/ensemble_report.py report.md` scores single models and fusions on the same unseen photos:
 
 | | CMP mAP50 | modern | Oxford | monuments | pixel IoU vs Claude (0.52) |
 |---|---|---|---|---|---|
@@ -186,11 +202,11 @@ When `parts11s` is trained too, `detect_facade` runs both and fuses their boxes 
 
 Plain weighted boxes fusion, which averages scores over every member, reached 0.78 on CMP but moved Oxford between 0.76 and 0.85 with the members' threshold, so it is not the default. The draft also proposes `px`, the facade's corners in the photo, as the box around the detected elements: on all 606 CMP photos it overlaps the annotated facade outline at 0.865 against 0.810 for the whole photo (under 0.7 on 11 % of photos against 26 %). The scene model's building box scored 0.844 and did not improve it, so it is not used there. A list of weights in `RHINO_FACADE_WEIGHTS` (joined by `;` on Windows, `:` elsewhere) fuses any models, the first counting double.
 
-The scene model (`python tools/train_data.py scene`, then `train scene --run scene2`) outlines buildings, sky, trees, vehicles, people, ground and poles. `tools/silhouette.py` uses its building mask to check a whole model's outline and proportions against the photo (`mask` the photo, `compare` the mesh written by `tools/export_mesh.py` in Rhino; `tools/photo3d.py` solves the camera and real sizes from the building's corners). On 200 photos of the scene test split, scene2's building mask overlaps the human outline at 0.82 IoU against 0.77 for scene11s. As a filter for the facade detector it did not help: on modern glass facades it drops real windows that reflect the sky.
+The scene model (`python tools/dev/train_data.py scene`, then `train scene --run scene2`) outlines buildings, sky, trees, vehicles, people, ground and poles. `tools/silhouette.py` uses its building mask to check a whole model's outline and proportions against the photo (`mask` the photo, `compare` the mesh written by `tools/export_mesh.py` in Rhino; `tools/photo3d.py` solves the camera and real sizes from the building's corners). On 200 photos of the scene test split, scene2's building mask overlaps the human outline at 0.82 IoU against 0.77 for scene11s. As a filter for the facade detector it did not help: on modern glass facades it drops real windows that reflect the sky.
 
 Draft plus Claude's own doors, shops and pillars: 0.63 on CMP. On four modern hznu photos scored through the whole straighten-and-read chain, openings 0.80 for the detector against 0.60 for Claude's readings. Claude still reads shops and pillars better. Licences: CMP is CC BY-SA, hznu CC BY 4.0, [CFP](https://github.com/wbw520/RTFP) states none, so a model trained with CFP is for personal use; train without `cfp` to get one you may share under CC BY-SA.
 
-Prompt scenarios live in `tools/scenarios/prompts.json` (table, chair, amphora, lamp, bookcase, ring, house, palazzo, spiral stair, straight stair, spiral stair with handrail, classic corner palazzo with mansard, villa with hip roof, Doric portico): each holds the prompt, the spec written for it and the expected size. `python tools/scenarios/run_prompts.py` checks them locally; `run_prompts.rhino(doc)` builds them in Rhino and compares sizes (all fourteen match). Default sizes for prompts that give none are in [docs/dimensions.md](docs/dimensions.md).
+Prompt scenarios live in `tools/dev/scenarios/prompts.json` (table, chair, amphora, lamp, bookcase, ring, house, palazzo, spiral stair, straight stair, spiral stair with handrail, classic corner palazzo with mansard, villa with hip roof, Doric portico): each holds the prompt, the spec written for it and the expected size. `python tools/dev/scenarios/run_prompts.py` checks them locally; `run_prompts.rhino(doc)` builds them in Rhino and compares sizes (all fourteen match). Default sizes for prompts that give none are in [docs/dimensions.md](docs/dimensions.md).
 
 ## License
 

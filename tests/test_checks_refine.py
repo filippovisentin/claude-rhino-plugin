@@ -7,6 +7,7 @@ import unittest
 HERE = os.path.dirname(__file__)
 sys.path.insert(0, os.path.join(HERE, "..", "rhino"))
 sys.path.insert(0, os.path.join(HERE, "..", "tools"))
+sys.path.insert(0, os.path.join(HERE, "..", "tools", "dev"))
 
 import numpy as np  # noqa: E402
 

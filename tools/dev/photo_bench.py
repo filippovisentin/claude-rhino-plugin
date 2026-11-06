@@ -6,11 +6,11 @@ Datasets (in data/, not in git):
   hznu     hznu_facade, 624 Hangzhou photos with window/door polygons (CC BY 4.0)
            Data in Brief 2025, doi 10.17632/k387xkyc5f.1
 
-  python tools/photo_bench.py pick DATASET N                 N single-facade photos, best first
-  python tools/photo_bench.py prep DATASET ID                resized photo to read (data/work/ID.jpg)
-  python tools/photo_bench.py rect ID "x,y x,y x,y x,y" [--ratio W/H] [--face FACE]
+  python tools/dev/photo_bench.py pick DATASET N                 N single-facade photos, best first
+  python tools/dev/photo_bench.py prep DATASET ID                resized photo to read (data/work/ID.jpg)
+  python tools/dev/photo_bench.py rect ID "x,y x,y x,y x,y" [--ratio W/H] [--face FACE]
                                                              straightened facade (data/work/ID.rect.jpg)
-  python tools/photo_bench.py score DATASET ID PRED          window/door IoU in the original photo
+  python tools/dev/photo_bench.py score DATASET ID PRED          window/door IoU in the original photo
 
 PRED is a facade spec with px, or a block whose faces have px (each face straightened with
 --face FACE is read on ID.FACE.rect.jpg). If ID.rect.json exists its boxes are read on the straightened image
@@ -27,8 +27,8 @@ import numpy as np
 from PIL import Image, ImageDraw
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-ROOT = os.path.dirname(HERE)
-sys.path.insert(0, HERE)
+ROOT = os.path.dirname(os.path.dirname(HERE))  # tools/dev -> repo
+sys.path[:0] = [HERE, os.path.dirname(HERE)]  # tools/dev, then the runtime tools
 import rectify as rc  # noqa: E402
 
 WORK = os.path.join(ROOT, "data", "work")

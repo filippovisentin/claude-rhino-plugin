@@ -6,7 +6,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { findInstalls, findRouter, packagesRoots } from "./find-router.mjs";
 import { findConflicts, isConflicting, describe } from "./config-check.mjs";
-import { findDetector } from "./facade-detector.mjs";
+import { detectorReport } from "./detector-install.mjs";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -46,10 +46,8 @@ for (const [name, s] of Object.entries(projectMcp?.mcpServers ?? {})) {
 if (conf.length) report("warn", "config", `other Rhino MCP entries may shadow or conflict with this plugin:\n    ${conf.join("\n    ")}`);
 else report("ok", "config", "no conflicting Rhino MCP entries");
 
-// 4b. Optional local facade detector (detect_facade): informational, never a failure
-const det = findDetector(dirname(dirname(fileURLToPath(import.meta.url))));
-report(det ? "ok" : "info", "detector", det ? `detect_facade on (${det.weights})`
-  : "detect_facade off: no data/venv-det Python or trained weights (optional, see README)");
+// 4b. Optional local facade detector (detect_facade): installed by scripts/setup.mjs, or the repo's data/
+for (const r of await detectorReport(dirname(dirname(fileURLToPath(import.meta.url))))) report(r.status, r.check, r.detail);
 
 // 5. Live handshake through the router: list_slots shows running Rhino instances
 function handshake() {

@@ -3,11 +3,12 @@
 The facade benchmark measures elements on a flat elevation; this measures the whole form: outline,
 proportions, curves. Run with the detector environment (Ultralytics, OpenCV):
 
-    data\\venv-det\\Scripts\\python.exe tools/silhouette.py mask PHOTO OUT.png [--point x,y] [--box x0,y0,x1,y1] [--conf 0.25]
-    data\\venv-det\\Scripts\\python.exe tools/silhouette.py compare MESH.json MASK.png OUT_PREFIX
+    node "<plugin>/scripts/run-tool.mjs" silhouette mask PHOTO OUT.png [--point x,y] [--box x0,y0,x1,y1] [--conf 0.25]
+    node "<plugin>/scripts/run-tool.mjs" silhouette compare MESH.json MASK.png OUT_PREFIX
         [--az A] [--el E] [--fov F] [--search]
 
-mask     the building in the photo, from the scene model (data/det-runs/scene2, else scene11s): every building
+mask     the building in the photo, from the scene model (the one installed by the setup, else
+         data/det-runs/scene2, else scene11s): every building
          instance, or only the one under --point (pixels) when neighbours are in the frame.
 compare  projects the model's mesh (MESH.json from tools/export_mesh.py, metres, Z up) with a
          camera at azimuth A (0 = looking from -Y, the facade's front; 90 = from +X), elevation E
@@ -30,11 +31,24 @@ import sys
 
 import numpy as np
 
+# run-tool starts Python with -I, which leaves this folder off sys.path: photo3d is imported from here
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # scene2 first: building mask IoU 0.824 against scene11s' 0.767 on 200 photos of the scene test split
 # (human building outlines), and an empty mask on 1 photo against 4.
 _RUNS = [os.path.join(ROOT, "data", "det-runs", r, "weights", "best.pt") for r in ("scene2", "scene11s")]
-SCENE = next((p for p in _RUNS if os.path.exists(p)), _RUNS[0])
+
+
+def scene_weights(env=os.environ):
+    """The scene model: the one installed by scripts/setup.mjs (RHINO_SCENE_WEIGHTS, set by
+    scripts/run-tool.mjs) when that file exists, else the repo's data/det-runs scene2, then scene11s."""
+    installed = env.get("RHINO_SCENE_WEIGHTS")
+    if installed and os.path.isfile(installed):
+        return installed
+    return next((p for p in _RUNS if os.path.exists(p)), _RUNS[0])
+
+
+SCENE = scene_weights()
 SIDE = 256          # working resolution of the comparison (long side, pixels)
 BANDS = 10
 

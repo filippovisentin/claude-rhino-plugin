@@ -1,6 +1,6 @@
 """Single models against their fusion (facade_yolo.fuse_boxes), on the report's fair photos.
 
-    data\\venv-det\\Scripts\\python.exe tools/ensemble_report.py OUT.md [RUN ...] [--fuse A+B[:wa,wb] ...]
+    data\\venv-det\\Scripts\\python.exe tools/dev/ensemble_report.py OUT.md [RUN ...] [--fuse A+B[:wa,wb] ...]
 
 Uses the groups train_report.py built in data/det-runs/_eval (photos no model has seen, human
 labels only) and scores every entry the same way: box mAP50 (101-point, matches at IoU 0.5) per
@@ -14,7 +14,8 @@ import os
 import sys
 import time
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+_HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path[:0] = [_HERE, os.path.dirname(_HERE)]  # tools/dev, then the runtime tools
 import facade_yolo as FY  # noqa: E402
 import train_data as TD  # noqa: E402
 import train_report as TR  # noqa: E402
@@ -126,7 +127,7 @@ def main(argv):
     groups = [g for g in ("cmp22", "modern", "oxford", "monumai") if os.path.isdir(os.path.join(TR.EVAL, g))]
     lines = ["# Single models and fusions", "", time.strftime("%Y-%m-%d %H:%M"), "",
              "Same photos as report4 (no model has seen them, human labels only); every row scored by "
-             "tools/ensemble_report.py, so rows compare with each other, not digit for digit with Ultralytics' val.", ""]
+             "tools/dev/ensemble_report.py, so rows compare with each other, not digit for digit with Ultralytics' val.", ""]
     summary = ["| entry | " + " | ".join(groups) + " | IoU vs Claude (cmp22) | openings IoU |",
                "|---|" + "---|" * (len(groups) + 2)]
     detail = []

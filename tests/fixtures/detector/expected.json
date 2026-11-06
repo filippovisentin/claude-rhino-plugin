@@ -1,0 +1,137 @@
+{
+ "img": [
+  960,
+  1280
+ ],
+ "px": [
+  0,
+  116,
+  610,
+  1202
+ ],
+ "els": [
+  {
+   "k": "window",
+   "box": [
+    531,
+    116,
+    580,
+    168
+   ]
+  },
+  {
+   "k": "window",
+   "box": [
+    385,
+    121,
+    451,
+    189
+   ]
+  },
+  {
+   "k": "window",
+   "box": [
+    384,
+    270,
+    451,
+    343
+   ]
+  },
+  {
+   "k": "window",
+   "box": [
+    535,
+    265,
+    586,
+    322
+   ]
+  },
+  {
+   "k": "window",
+   "box": [
+    382,
+    432,
+    452,
+    515
+   ]
+  },
+  {
+   "k": "window",
+   "box": [
+    539,
+    427,
+    592,
+    492
+   ]
+  },
+  {
+   "k": "window",
+   "box": [
+    379,
+    612,
+    452,
+    699
+   ]
+  },
+  {
+   "k": "window",
+   "box": [
+    543,
+    608,
+    599,
+    677
+   ]
+  },
+  {
+   "k": "window",
+   "box": [
+    375,
+    809,
+    452,
+    909
+   ]
+  },
+  {
+   "k": "window",
+   "box": [
+    550,
+    805,
+    610,
+    882
+   ]
+  },
+  {
+   "k": "window",
+   "box": [
+    0,
+    906,
+    35,
+    943
+   ]
+  },
+  {
+   "k": "window",
+   "box": [
+    52,
+    923,
+    82,
+    953
+   ]
+  },
+  {
+   "k": "window",
+   "box": [
+    406,
+    1134,
+    477,
+    1202
+   ]
+  }
+ ],
+ "review": "Detector draft in this image's pixels. Reliable: window, sill, cornice, molding, balcony, blind; arch and round window shapes, pediments (cornice tri over an opening, else k pediment) and finials come from a model trained on monuments: keep them where the photo agrees. Check yourself: door (weakest class), shop, pillar, deco, set h; px is the box around the detected elements: move it to the facade's own corners (the wall's edges and the roofline usually lie a little outside it; drop neighbours' windows), merge duplicates, add rustic/quoin. palette: colours read off the photo (median, exposure-corrected); check it before passing it on.",
+ "device": "cuda",
+ "palette": {
+  "wall": "#b1b8cb",
+  "glass": "#2e498c"
+ }
+}

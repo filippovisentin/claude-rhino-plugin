@@ -1,6 +1,6 @@
 """Report for trained facade detectors: same test photos for every model.
 
-    python tools/facade_report.py OUT.md RUN [RUN ...]     # RUN = folder under data/det-runs
+    python tools/dev/facade_report.py OUT.md RUN [RUN ...]     # RUN = folder under data/det-runs
 
 For each run:
   - CMP test (22 photos Claude read blind): mIoU per photo and per class, detector vs Claude
@@ -14,7 +14,8 @@ import os
 import sys
 import time
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+_HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path[:0] = [_HERE, os.path.dirname(_HERE)]  # tools/dev, then the runtime tools
 import facade_yolo as Y  # noqa: E402
 
 RUNS = os.path.join(Y.FB.ROOT, "data", "det-runs")
