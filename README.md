@@ -154,7 +154,21 @@ Straightening from four read corners against hznu's ground-truth homography (c_0
 
 ### Local facade detector (optional)
 
-A YOLO detector trained on your own machine reads facade elements in a few milliseconds and hands Claude a draft to correct (`detect_facade` tool). It is offered only when a Python with `ultralytics` and trained weights exist (by default `data/venv-det` and the first of `data/det-runs/parts2m`, `parts11s`, `all11s` with `weights/best.pt`, or `RHINO_FACADE_PYTHON` and `RHINO_FACADE_WEIGHTS`). Nothing is downloaded at run time and nothing leaves the machine.
+A YOLO detector reads facade elements in a few milliseconds and hands Claude a draft to correct (`detect_facade` tool). It is offered only when a Python with `ultralytics` and trained weights exist, looked up in this order: `RHINO_FACADE_PYTHON` and `RHINO_FACADE_WEIGHTS`; the install made by `node scripts/setup.mjs` under `%LOCALAPPDATA%\claude-rhino` (used only when it matches `models.json` and passed its self-test); `data/venv-det` with the first of `data/det-runs/parts2m`, `parts11s`, `all11s` (`weights/best.pt`) on the machine that trains them. It runs on the GPU when there is one and on the CPU otherwise (about 0.4 s per photo; `RHINO_FACADE_DEVICE=cpu` forces it), and the draft says which (`device`) and which models (`model`). Nothing is downloaded at run time and nothing leaves the machine.
+
+#### On a studio PC
+
+The trained weights are published as assets of a release of this private repository; `models.json` names the release and the sha256 of every file, and `MODELS-LICENSE.md` limits them to internal use. `node scripts/setup.mjs` (from the plugin folder) checks the NVIDIA driver (570 or newer), creates a pinned Python with `uv` in `%LOCALAPPDATA%\claude-rhino\venv` (about 8 GB with PyTorch for CUDA 12.8; `--cpu` installs the CPU build, about 2 GB), downloads the weights with `gh`, keeps them only if their sha256 matches, and runs the detector on `tests/fixtures/detector` against its reference draft. Plugin updates don't touch that folder; running the setup again skips what is done and fetches only new models.
+
+Setting up a colleague's PC:
+
+1. Add them to this GitHub repository.
+2. They run `gh auth login` (and install [`uv`](https://docs.astral.sh/uv/getting-started/installation/) if missing).
+3. They install the plugin (`claude plugin marketplace add filippovisentin/claude-rhino-plugin`, then `claude plugin install rhino@claude-rhino`).
+4. From the plugin folder: `node scripts/setup.mjs`.
+5. `node scripts/doctor.mjs` shows three `OK` detector lines (python, models, gpu); then give Claude a facade photo.
+
+Training (below) stays on the machine with the datasets.
 
 ```bash
 python -m venv data/venv-det
