@@ -1,0 +1,8 @@
+# Facade detector, GPU (CUDA 12.8). Installed by scripts/setup.mjs; versions match the reference PC.
+--extra-index-url https://download.pytorch.org/whl/cu128
+torch==2.11.0+cu128
+ultralytics==8.4.202
+numpy==2.5.4
+opencv-python==5.0.0
+Pillow==12.3.0
+psutil
