@@ -35,7 +35,7 @@ STYLES = ("plain", "classic", "modern")
 RAILS = ("balustrade", "iron", "solid", "glass")
 LEAVES = ("panel", "glass", "garage")   # door leaf: panelled, glazed (French, patio), sectional
 OPENINGS = ("window", "door", "shop")
-COMMON_KEYS = ("type", "name", "at", "rot", "tilt", "color", "cut", "group", "obj", "cat", "join")
+COMMON_KEYS = ("type", "name", "at", "rot", "tilt", "color", "cut", "keep", "group", "obj", "cat", "join")
 
 _KEYS = {
     "box": ("size",),
@@ -161,6 +161,13 @@ def _common(part, path, allow_cut=True):
         if not isinstance(cuts, list) or not (1 <= len(cuts) <= MAX_CUTS):
             _fail(path + ".cut", "expected 1..%d parts" % MAX_CUTS)
         out["cut"] = [_primitive(c, "%s.cut[%d]" % (path, i), allow_cut=False) for i, c in enumerate(cuts)]
+    if "keep" in part:   # boolean intersection: the part keeps only what lies inside every keep part
+        if not allow_cut:
+            _fail(path + ".keep", "cutters cannot have their own keep parts")
+        keeps = part["keep"]
+        if not isinstance(keeps, list) or not (1 <= len(keeps) <= MAX_CUTS):
+            _fail(path + ".keep", "expected 1..%d parts" % MAX_CUTS)
+        out["keep"] = [_primitive(c, "%s.keep[%d]" % (path, i), allow_cut=False) for i, c in enumerate(keeps)]
     return out
 
 

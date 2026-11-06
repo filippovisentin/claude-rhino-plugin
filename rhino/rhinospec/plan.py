@@ -1099,9 +1099,9 @@ def _arcade_recesses(arcades, inside, place, box, name, T, rot, color, m):
 
 
 def _shift(p, a, b):
-    """Moves a planned part (and its cutters) by the vector b -> a."""
+    """Moves a planned part (and its cutters and keep parts) by the vector b -> a."""
     d = [a[i] - b[i] for i in range(3)]
-    for q in [p] + p.get("cut", []):
+    for q in [p] + p.get("cut", []) + p.get("keep", []):
         if "at" in q:
             q["at"] = [q["at"][i] + d[i] for i in range(3)]
 

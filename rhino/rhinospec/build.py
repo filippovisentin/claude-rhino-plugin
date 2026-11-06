@@ -305,6 +305,16 @@ def build(spec, doc=None, redraw=True):
             if brep is None or not brep.IsValid:
                 warnings.append("%s: geometry failed, skipped" % label)
                 continue
+            if p.get("keep"):
+                # intersection, one keep part at a time: a volume read from several views
+                # (an elevation extruded through a side profile and a plan) is what they share
+                for k in p["keep"]:
+                    kb = _placed(k, scale, tol)
+                    res = rg.Brep.CreateBooleanIntersection(brep, kb, tol) if kb is not None else None
+                    if not res:
+                        warnings.append("%s: keep failed, kept whole" % label)
+                        break
+                    brep = res[0] if len(res) == 1 else max(res, key=lambda b: b.GetVolume())
             pieces = [brep]
             if p.get("cut"):
                 cutters = [c for c in (_placed(c, scale, tol) for c in p["cut"]) if c is not None]

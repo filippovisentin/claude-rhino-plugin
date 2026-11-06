@@ -193,6 +193,52 @@ rooftop railing set back on cfp_r5b (no element for it), relief invisible in sha
 Audit after this round, in Rhino: 71 specs, 13845 objects, no open, non-manifold or multi-shell object,
 no slab seen through glass, no warning; the document is left empty.
 
+## Sixth round: curved modern buildings, one at a time
+
+The facade method reads a flat elevation; a tower whose roof sweeps up to a spike, a sail or a shell
+is a volume first. Method for these, the same for every building:
+
+1. Corners: read the corners of every visible face and write their 3D coordinates with the unknown
+   sizes as names (`W`, `D`, `H0`), the building's regularity as arithmetic (`Zb+3*F`: equal floors)
+   and hidden feet as `?`; `tools/photo3d.py solve` returns the camera and the sizes (rms in pixels).
+2. Outlines: the same tool turns every outline read on the photo (a roof line, a profile) into metres
+   on its face's plane.
+3. Volume: each measured outline is a `prism` through the building; the volume is what they share
+   (`keep`, new: a boolean intersection). Skin: the facade (`facade` with the measured `top`) set in
+   front of it, its glazing read by `tools/glass_read.py` on the face straightened with the same camera.
+4. Check: `tools/silhouette.py compare --calib` draws the model with the photo's own camera, no
+   fitting; trees, cars and people are left out of the score. Side by side in Rhino from
+   `rhino_view`.
+
+| photo | type |
+|---|---|
+| The Ascent (styles/Deconstructivism 1634) | residential tower: roof sweeping from the eaves up to a spike on the front corner, side roof falling back from it, free pattern of glass strips on white panels, stacked balconies on the side |
+
+| # | gap | cause | fix |
+|---|---|---|---|
+| 23 | a curved roofline only raised a thin wall: `top` cuts the facade, the body behind stayed flat at the eaves (silhouette 0.55 with the shape guessed, 0.87 with `top` on measured sizes) | builder | the volume is built from the measured views with `keep`: 0.92 |
+| 24 | proportions guessed by eye: the side looked 22-30 m deep in the silhouette fit; the camera solved from the corners gave 22.1 m only once the 14 balconies were tied to equal floors | reading | `photo3d.py`: the camera and sizes from the corners, the building's rules as constraints |
+| 25 | `extrude`, `loft` and clockwise `prism` solids came out inside out: a cut with them turned into a union, silently | builder | every extruded, lofted and revolved solid is turned outward (see below) |
+| 26 | the facade detector found 0-7 windows on the glass strips (never trained on curtain walls) | detector | `glass_read.py`: colour groups on the straightened face, largest-rectangle cover, 121 panes, 0.81 overlap with the glass |
+| 27 | the silhouette score counted trees as missing building | measurement | trees, cars and people are left out (the scene model's classes) |
+
+Result: silhouette 0.936 with the photo's camera (1.4 % of the model outside the building, 5.1 % of
+the building not covered), 14 balconies on equal floors, 121 glass panes.
+
+What one photo cannot settle, found on the way and now built into `photo3d.py`:
+- Several buildings fit the same corners (a wide one far away, a narrow one close): the tool lists
+  them as `alternatives`; `limits` from the brief or the construction (a floor 2.8-4.5 m, about 30
+  facade panels of 1.15-2.1 m) rule some out. Choosing by pixel error alone picked a 110 m front.
+- A handheld photo is rarely level: the camera now rolls (-2.5 degrees here, error 2.5 -> 1.4 px).
+- Published sizes go in `known` (here: roof 89.36 m, 14 to 22 storeys, from Wikipedia, Structurae
+  and Libeskind's description).
+- Even so the front pulled towards an endless width: its plan is most likely curved, and one view of
+  a curved face read as a plane cannot give the plan. The elevation (outline, roof line, floors,
+  glazing) is measured; the plan depth stays an assumption, stated as such.
+
+Still open: the side face has no glass skin of its own, panel joints are not drawn, the fold of the
+front near the spike is flat, and the plan (front curvature, depth) needs a second photo or a plan.
+
 ## Already fixed during the trials
 
 - Shutter louvres were one part per slat (2162 parts for b0121, over the limit): one profile now.

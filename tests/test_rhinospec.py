@@ -56,6 +56,22 @@ class Primitives(unittest.TestCase):
         self.assertEqual(p["color"], "#ff0000")
         self.assertEqual(p["cut"][0]["type"], "cyl")
 
+    def test_keep_intersects_views(self):
+        # a front elevation extruded through the depth, kept inside the side profile
+        front = {"type": "prism", "pts": [[0, 0], [10, 0], [10, 30], [0, 12]], "len": 8,
+                 "keep": [{"type": "prism", "rot": 90, "at": [11, 0, 0], "len": 12,
+                           "pts": [[0, 0], [8, 0], [8, 20], [0, 30]]}]}
+        p = validate(spec(front))["parts"][0]
+        self.assertEqual(p["keep"][0]["type"], "prism")
+        self.assertEqual(p["keep"][0]["at"], [11, 0, 0])
+        inner = {"type": "box", "size": [1, 1, 1], "keep": [{"type": "sphere", "r": 1}]}
+        with self.assertRaisesRegex(SpecError, "own keep parts"):
+            validate(spec({"type": "box", "size": [2, 2, 2], "cut": [inner]}))
+        with self.assertRaisesRegex(SpecError, "expected 1.."):
+            validate(spec({"type": "box", "size": [2, 2, 2], "keep": []}))
+        with self.assertRaisesRegex(SpecError, "expected 1.."):
+            validate(spec({"type": "box", "size": [2, 2, 2], "keep": {"type": "sphere", "r": 1}}))
+
 
 class Rejections(unittest.TestCase):
     def bad(self, s, fragment):
