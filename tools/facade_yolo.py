@@ -306,6 +306,19 @@ def fuse_boxes(per_model, weights=None, iou=0.55, mode="avg"):
 _MODELS = {}
 
 
+def pick_device(env=os.environ, cuda=None):
+    """GPU 0 when torch sees one, else "cpu". RHINO_FACADE_DEVICE=cpu forces the CPU; =cuda only
+    asks for the GPU and still falls back. Passed to every predict, because Ultralytics would
+    otherwise reuse the device stored in the weights (GPU 0 from training) and fail without one."""
+    if cuda is None:
+        import torch
+        # is_available() can stay True with every GPU hidden (CUDA_VISIBLE_DEVICES=""): count them too
+        cuda = torch.cuda.is_available() and torch.cuda.device_count() > 0
+    if env.get("RHINO_FACADE_DEVICE") == "cpu" or not cuda:
+        return "cpu"
+    return 0
+
+
 def predict(weights, path, conf=0.25, model_weights=None, mode="max"):
     """Detections [(class, conf, x0, y0, x1, y1) px] and (w, h) for one photo. weights is one .pt
     path, or several joined by os.pathsep (or a list): then every model runs at a lower
@@ -320,10 +333,12 @@ def predict(weights, path, conf=0.25, model_weights=None, mode="max"):
     paths = weights if isinstance(weights, (list, tuple)) else str(weights).split(os.pathsep)
     paths = [p for p in paths if p]
     per, w, h = [], None, None
+    dev = pick_device()
     for p in paths:
         if p not in _MODELS:
             _MODELS[p] = YOLO(p)
-        r = _MODELS[p].predict(path, conf=conf if len(paths) == 1 else min(conf, 0.05) / 2, verbose=False)[0]
+        r = _MODELS[p].predict(path, conf=conf if len(paths) == 1 else min(conf, 0.05) / 2, device=dev,
+                               verbose=False)[0]
         h, w = r.orig_shape
         per.append([(r.names[int(c)], float(s), *map(float, b))
                     for c, s, b in zip(r.boxes.cls.tolist(), r.boxes.conf.tolist(), r.boxes.xyxy.tolist())])
@@ -351,7 +366,8 @@ def detect_image(path, weights, conf=0.25):
     and position so rows read in order. weights: one model, or several joined by os.pathsep."""
     dets, (w, h) = predict(weights, path, conf)
     els = draft_elements(dets, w, h, conf)
-    out = {"img": [w, h], "px": facade_px(els, w, h), "els": els, "review": REVIEW}
+    out = {"img": [w, h], "px": facade_px(els, w, h), "els": els, "review": REVIEW,
+           "device": "cpu" if pick_device() == "cpu" else "cuda"}
     pal = sample_palette(path, els)
     if pal:
         out["palette"] = pal
