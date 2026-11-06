@@ -37,6 +37,16 @@ class Fuse(unittest.TestCase):
         self.assertAlmostEqual(both[0][1], 0.8)
 
 
+class Px(unittest.TestCase):
+    def test_px_is_the_box_around_the_elements(self):
+        els = [{"k": "window", "box": [100, 200, 150, 260]}, {"k": "cornice", "box": [40, 80, 700, 110]},
+               {"k": "door", "box": [300, 400, 360, 520]}]
+        self.assertEqual(FY.facade_px(els, 768, 569), [40, 80, 700, 520])
+
+    def test_no_elements_keep_the_whole_photo(self):
+        self.assertEqual(FY.facade_px([], 768, 569), [0, 0, 768, 569])
+
+
 class AP(unittest.TestCase):
     def test_perfect_and_empty(self):
         gts = {"a": [[0, 0, 10, 10]], "b": [[0, 0, 10, 10]]}

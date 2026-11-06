@@ -208,8 +208,9 @@ def detect(fid, weights, conf=0.25):
 REVIEW = ("Detector draft in this image's pixels. Reliable: window, sill, cornice, molding, balcony, "
           "blind; arch and round window shapes, pediments (cornice tri over an opening, else k pediment) "
           "and finials come from a model trained on monuments: keep them where the photo agrees. Check "
-          "yourself: door (weakest class), shop, pillar, deco, set h and px (the facade's own corners; "
-          "the draft spans the whole image), merge duplicates, add rustic/quoin. "
+          "yourself: door (weakest class), shop, pillar, deco, set h; px is the box around the detected "
+          "elements: move it to the facade's own corners (the wall's edges and the roofline usually lie "
+          "a little outside it; drop neighbours' windows), merge duplicates, add rustic/quoin. "
           "palette: colours read off the photo (median, exposure-corrected); check it before passing it on.")
 
 
@@ -333,12 +334,24 @@ def predict(weights, path, conf=0.25, model_weights=None, mode="max"):
     return dets, (w, h)
 
 
+def facade_px(els, w, h):
+    """First guess of the facade's px corners: the box around the detected elements, else the
+    whole photo. Measured on all 606 CMP photos against their facade outlines (box IoU): 0.865
+    against 0.810 for the whole photo, outlines under 0.7 on 11 % of photos against 26 %. The
+    scene model's building box scored 0.844, and margins or snapping sides to it changed less
+    than 0.004, so the plain box stays. Neighbours' windows in a street photo widen it."""
+    if not els:
+        return [0, 0, w, h]
+    return [min(e["box"][0] for e in els), min(e["box"][1] for e in els),
+            max(e["box"][2] for e in els), max(e["box"][3] for e in els)]
+
+
 def detect_image(path, weights, conf=0.25):
     """Any photo -> {img, els, review}: a px facade draft for Claude to correct, sorted by class
     and position so rows read in order. weights: one model, or several joined by os.pathsep."""
     dets, (w, h) = predict(weights, path, conf)
     els = draft_elements(dets, w, h, conf)
-    out = {"img": [w, h], "els": els, "review": REVIEW}
+    out = {"img": [w, h], "px": facade_px(els, w, h), "els": els, "review": REVIEW}
     pal = sample_palette(path, els)
     if pal:
         out["palette"] = pal

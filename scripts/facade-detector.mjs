@@ -26,9 +26,9 @@ export const FUSED_RUNS = ["parts2m", "parts11s"];
 export const DETECT_TOOL = {
   name: "detect_facade",
   description:
-    "Local facade detector: reads a facade photo (absolute path) and returns a px facade draft {img:[w,h], els:[{k, box}]} " +
+    "Local facade detector: reads a facade photo (absolute path) and returns a px facade draft {img:[w,h], px, els:[{k, box}]} " +
     "in that image's pixels, found by a model trained on facade datasets. Call it before reading a facade photo; then " +
-    "correct the draft (doors, shops, pillars, h, the facade's px corners) instead of reading every element. " +
+    "correct the draft (doors, shops, pillars, h, and px: proposed as the box around the elements) instead of reading every element. " +
     "Measured: about 0.63 IoU per element against 0.52 for an unaided reading.",
   inputSchema: {
     type: "object",
