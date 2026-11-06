@@ -155,3 +155,29 @@ test("paths reach every command whole, never through a shell", async () => {
   const dl = x.calls.find((c) => c.args[1] === "download");
   assert.ok(dl.args[dl.args.indexOf("-D") + 1].includes("Filippo Visentì"));
 });
+
+test("a venv still in use (Windows refuses to delete it) stops the setup with a clear message", async () => {
+  const w = world();
+  await run(w, fakeExec());
+  const busy = () => { const e = new Error("EBUSY: resource busy or locked"); e.code = "EBUSY"; throw e; };
+  const r = await run(w, fakeExec(), { cpu: true, rm: busy });
+  assert.equal(r.ok, false);
+  assert.equal(r.step, "python");
+  assert.match(r.message, /in use/);
+});
+
+test("Python probes run isolated (-I), so files in the current folder are never imported", async () => {
+  const w = world();
+  await run(w, fakeExec());
+  const x = fakeExec();
+  await run(w, x);
+  const probe = x.calls.find((c) => c.args.includes("-c"));
+  assert.equal(probe.args[0], "-I");
+});
+
+test("gh missing is reported as missing, not as signed out", async () => {
+  const w = world();
+  const r = await run(w, fakeExec({ "gh auth status": { code: 127, stdout: "", stderr: "" } }));
+  assert.equal(r.ok, false);
+  assert.match(r.message, /gh not found/);
+});

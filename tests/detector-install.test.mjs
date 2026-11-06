@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -243,4 +243,24 @@ test("doctor: the repo's data/ and the env variables are reported as such", asyn
   const w = join(dir, "models", "2026.11.06", "parts2m.pt");
   const l2 = await lines(repo, { ...env, RHINO_FACADE_PYTHON: join(dir, "venv", ...VENV_PY), RHINO_FACADE_WEIGHTS: w });
   assert.deepEqual(l2, [`info using RHINO_FACADE_PYTHON / RHINO_FACADE_WEIGHTS: ${w}`]);
+});
+
+// --- Final review fixes ------------------------------------------------------------------------
+test("an install that a rerun of the setup is replacing is not run, even after the plugin started", async () => {
+  const { repo, env, dir } = fakeInstall();
+  const d = findDetector(repo, env);
+  assert.equal(d.source, "installed");
+  const s = JSON.parse(readFileSync(join(dir, "setup.json"), "utf8"));
+  writeFileSync(join(dir, "setup.json"), JSON.stringify({ ...s, selftest: "pending" }));
+  let ran = false;
+  await assert.rejects(runDetector(d, "C:\a.jpg", 0.25, (f, a, o, cb) => { ran = true; cb(null, '{"img":[1,2],"els":[]}'); }),
+    /setup/);
+  assert.equal(ran, false);
+});
+
+test("the doctor's Python probe runs isolated (-I)", async () => {
+  const { repo, env } = fakeInstall();
+  const seen = [];
+  await detectorReport(repo, env, async (file, args) => { seen.push(args); return doctorExec()(file, args); });
+  assert.equal(seen.find((a) => a.includes("-c"))[0], "-I");
 });

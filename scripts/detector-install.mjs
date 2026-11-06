@@ -144,7 +144,7 @@ export async function detectorReport(repoRoot, env = process.env, exec = execQui
   if (det?.source === "repo") return out;
 
   const inst = installedDetector(repoRoot, env);
-  const py = await exec(inst.python, ["-c", GPU_PROBE], { timeout: 30_000 });
+  const py = await exec(inst.python, ["-I", "-c", GPU_PROBE], { timeout: 30_000 });
   let probe = null;
   try { probe = JSON.parse(py.stdout.trim().split(/\r?\n/).pop()); } catch { /* reported below */ }
   if (py.code !== 0 || !Array.isArray(probe)) return [line("fail", `python ${inst.python} does not start: ${FIX}`)];

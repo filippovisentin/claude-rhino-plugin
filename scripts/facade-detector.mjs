@@ -11,7 +11,7 @@
 import { execFile } from "node:child_process";
 import { existsSync, statSync, realpathSync } from "node:fs";
 import { delimiter, extname, isAbsolute, join } from "node:path";
-import { installedDetector } from "./detector-install.mjs";
+import { installState, installedDetector } from "./detector-install.mjs";
 
 export const IMAGE_EXT = new Set([".jpg", ".jpeg", ".png", ".webp", ".bmp"]);
 export const MAX_IMAGE_BYTES = 50 * 1024 * 1024;
@@ -49,7 +49,8 @@ export function findDetector(repoRoot, env = process.env) {
   if (!custom) {
     const inst = installedDetector(repoRoot, env);
     const script = join(repoRoot, "tools", "facade_yolo.py");
-    if (inst && existsSync(script)) return { ...inst, script, source: "installed" };
+    // ready(): a rerun of the setup may replace this install while the plugin runs
+    if (inst && existsSync(script)) return { ...inst, script, source: "installed", ready: () => installState(repoRoot, env).state === "ok" };
   }
   const det = findRepoDetector(repoRoot, env);
   return det && { ...det, source: custom ? "env" : "repo", version: null, model: custom ? "custom" : "repo" };
@@ -91,6 +92,9 @@ export function checkConf(conf) {
 
 // Resolves with the draft's JSON text; rejects with a short message.
 export function runDetector(det, image, conf, run = execFile) {
+  if (det.ready && !det.ready()) {
+    return Promise.reject(new Error("the detector is being reinstalled by node scripts/setup.mjs: try again when the setup has finished"));
+  }
   const env = { ...process.env, YOLO_OFFLINE: "1" };
   if (det.configDir) env.YOLO_CONFIG_DIR = det.configDir;
   return new Promise((resolve, reject) => {

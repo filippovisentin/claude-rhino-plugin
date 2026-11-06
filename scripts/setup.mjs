@@ -37,7 +37,7 @@ function defaultFreeBytes(path) {
 const inside = (dir, p) => { const r = relative(dir, p); return r && !r.startsWith("..") && !isAbsolute(r); };
 
 export async function setup({ repoRoot, env = process.env, cpu = false, exec = defaultExec, detect = runDetector,
-  freeBytes = defaultFreeBytes, log = console.log } = {}) {
+  freeBytes = defaultFreeBytes, rm = rmSync, log = console.log } = {}) {
   const fail = (step, message) => ({ ok: false, step, message });
   const run = (file, args, timeout = 120_000) => exec(file, args, { shell: false, windowsHide: true, timeout });
   const manifest = readManifest(repoRoot);
@@ -56,7 +56,7 @@ export async function setup({ repoRoot, env = process.env, cpu = false, exec = d
   };
 
   // What is missing decides which checks are needed.
-  const venvOk = existsSync(python) && state.device === device && (await run(python, ["-c", "import torch, ultralytics"], 60_000)).code === 0;
+  const venvOk = existsSync(python) && state.device === device && (await run(python, ["-I", "-c", "import torch, ultralytics"], 60_000)).code === 0;
   const missing = manifest.default.filter((r) => state.verified[r] !== manifest.files[r].sha256 ||
     !existsSync(join(modelDir, manifest.files[r].asset)));
 
@@ -71,7 +71,9 @@ export async function setup({ repoRoot, env = process.env, cpu = false, exec = d
   }
   if (!venvOk && (await run("uv", ["--version"], 30_000)).code !== 0) return fail("prereqs", UV_HELP);
   if (missing.length) {
-    if ((await run("gh", ["auth", "status"], 30_000)).code !== 0) return fail("prereqs", "gh is not signed in: run gh auth login");
+    const auth = await run("gh", ["auth", "status"], 30_000);
+    if (auth.code === 127) return fail("prereqs", "gh not found: install GitHub CLI (https://cli.github.com), then run gh auth login");
+    if (auth.code !== 0) return fail("prereqs", "gh is not signed in: run gh auth login");
     if ((await run("gh", ["release", "view", manifest.release, "--repo", REPO], 30_000)).code !== 0) {
       return fail("prereqs", `no access to release ${manifest.release} of ${REPO}: ask to be added to the repository, then run gh auth login`);
     }
@@ -89,7 +91,11 @@ export async function setup({ repoRoot, env = process.env, cpu = false, exec = d
     log(`Python: creating ${venv} (${device}), this downloads PyTorch the first time`);
     if (existsSync(venv)) {
       if (!inside(dir, venv)) return fail("python", `refusing to delete ${venv}`);
-      rmSync(venv, { recursive: true, force: true });
+      try {
+        rm(venv, { recursive: true, force: true });
+      } catch (e) {
+        return fail("python", `${venv} is in use (${e.code ?? e.message}): close the Claude or Rhino sessions that use detect_facade, then run the setup again`);
+      }
     }
     const mk = await run("uv", ["venv", "--python", "3.12", venv], 600_000);
     if (mk.code !== 0) return fail("python", `uv venv failed: ${mk.stderr.trim().slice(-400)}`);
