@@ -17,7 +17,7 @@ function world() {
   const root = mkdtempSync(join(tmpdir(), "setup-"));
   const repo = join(root, "repo");
   mkdirSync(join(repo, "tools"), { recursive: true });
-  writeFileSync(join(repo, "tools", "facade_yolo.py"), "");
+  writeFileSync(join(repo, "tools", "facade_detect.py"), "");
   mkdirSync(join(repo, "tests", "fixtures", "detector"), { recursive: true });
   writeFileSync(join(repo, "tests", "fixtures", "detector", "c_0075.jpg"), "jpeg");
   writeFileSync(join(repo, "tests", "fixtures", "detector", "expected.json"), JSON.stringify(EXPECTED));

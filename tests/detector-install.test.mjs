@@ -86,7 +86,7 @@ function fakeInstall(over = (s) => s, { repoData = false } = {}) {
   const root = tmp("di-inst-");
   const repo = join(root, "repo");
   mkdirSync(join(repo, "tools"), { recursive: true });
-  writeFileSync(join(repo, "tools", "facade_yolo.py"), "");
+  writeFileSync(join(repo, "tools", "facade_detect.py"), "");
   const m = manifest();
   m.files.parts2m.sha256 = SHA.parts2m;
   m.files.parts11s.sha256 = SHA.parts11s;
@@ -133,6 +133,7 @@ test("a complete install is found first, with its path intact", () => {
   assert.ok(d.python.includes("Filippo Visentì"));
   assert.equal(d.configDir, join(dir, "cfg"));
   assert.equal(d.model, "2026.11.06 parts2m+parts11s");
+  assert.ok(d.script.endsWith("facade_detect.py"));
 });
 
 test("a truncated setup.json counts as no install, without throwing", () => {

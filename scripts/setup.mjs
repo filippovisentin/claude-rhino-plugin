@@ -136,7 +136,7 @@ export async function setup({ repoRoot, env = process.env, cpu = false, exec = d
     const fixture = join(repoRoot, "tests", "fixtures", "detector");
     let diff;
     try {
-      const out = JSON.parse(await detect({ ...inst, script: join(repoRoot, "tools", "facade_yolo.py") }, join(fixture, "c_0075.jpg"), 0.25));
+      const out = JSON.parse(await detect({ ...inst, script: join(repoRoot, "tools", "facade_detect.py") }, join(fixture, "c_0075.jpg"), 0.25));
       diff = compareDraft(out, JSON.parse(readFileSync(join(fixture, "expected.json"), "utf8")));
     } catch (e) {
       diff = [`detector did not run: ${e.message}`];

@@ -9,7 +9,7 @@ import unittest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "tools"))
-import facade_yolo as FY  # noqa: E402
+import facade_detect as FY  # noqa: E402
 
 FIXTURE = os.path.join(ROOT, "tests", "fixtures", "detector", "c_0075.jpg")
 VENV = os.path.join(ROOT, "data", "venv-det", "Scripts" if os.name == "nt" else "bin",
@@ -39,7 +39,7 @@ class PickDevice(unittest.TestCase):
 class RunsWithoutGpu(unittest.TestCase):
     def test_hidden_gpu_runs_on_cpu(self):
         env = dict(os.environ, CUDA_VISIBLE_DEVICES="", YOLO_OFFLINE="1")
-        p = subprocess.run([VENV, "-I", os.path.join(ROOT, "tools", "facade_yolo.py"), "detect-image",
+        p = subprocess.run([VENV, "-I", os.path.join(ROOT, "tools", "facade_detect.py"), "detect-image",
                             FIXTURE, os.pathsep.join(RUNS), "0.25"],
                            capture_output=True, text=True, env=env, timeout=300)
         self.assertEqual(p.returncode, 0, p.stderr[-500:])

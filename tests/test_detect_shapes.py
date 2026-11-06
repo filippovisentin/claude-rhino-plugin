@@ -4,7 +4,7 @@ import sys
 import unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "tools"))
-import facade_yolo as FY  # noqa: E402
+import facade_detect as FY  # noqa: E402
 
 W, H = 1000, 800
 

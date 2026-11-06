@@ -1,5 +1,5 @@
 // detect_facade: runs the local facade detector (YOLO trained on facade datasets, see
-// tools/facade_yolo.py) on a photo and returns a px facade draft for the model to correct.
+// tools/facade_detect.py) on a photo and returns a px facade draft for the model to correct.
 // It is offered only when a Python with ultralytics and trained weights are present:
 //   RHINO_FACADE_PYTHON   python executable (default data/venv-det in this repo)
 //   RHINO_FACADE_WEIGHTS  weights file, or several joined by the path delimiter (";" on Windows) to fuse
@@ -48,7 +48,7 @@ export function findDetector(repoRoot, env = process.env) {
   const custom = Boolean(env.RHINO_FACADE_PYTHON || env.RHINO_FACADE_WEIGHTS);
   if (!custom) {
     const inst = installedDetector(repoRoot, env);
-    const script = join(repoRoot, "tools", "facade_yolo.py");
+    const script = join(repoRoot, "tools", "facade_detect.py");
     // ready(): a rerun of the setup may replace this install while the plugin runs
     if (inst && existsSync(script)) return { ...inst, script, source: "installed", ready: () => installState(repoRoot, env).state === "ok" };
   }
@@ -64,7 +64,7 @@ function findRepoDetector(repoRoot, env) {
   const weights = env.RHINO_FACADE_WEIGHTS ||
     (fused.every((p) => existsSync(p)) ? fused.join(delimiter) : null) ||
     DEFAULT_RUNS.map(run).find((p) => existsSync(p)) || run("all11s");
-  const script = join(repoRoot, "tools", "facade_yolo.py");
+  const script = join(repoRoot, "tools", "facade_detect.py");
   if (![python, ...weights.split(delimiter).filter(Boolean), script].every((p) => existsSync(p))) return null;
   const cfg = join(repoRoot, "data", "det-runs", "cfg");
   return { python, weights, script, configDir: existsSync(cfg) ? cfg : null };
