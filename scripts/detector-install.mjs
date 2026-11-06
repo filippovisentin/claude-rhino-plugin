@@ -1,6 +1,7 @@
 // The installed facade detector: models.json (what the plugin asks for), setup.json (what
 // scripts/setup.mjs installed under %LOCALAPPDATA%\claude-rhino), hashes and draft comparison.
 // Pure helpers shared by facade-detector.mjs, setup.mjs and doctor.mjs.
+import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { createReadStream, existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
@@ -108,6 +109,60 @@ export function compareDraft(actual, expected, tol = 4) {
     ab.forEach((box, i) => {
       if (box.some((v, j) => Math.abs(v - eb[i][j]) > tol)) out.push(`${k} #${i + 1}: box [${box}] expected [${eb[i]}]`);
     });
+  }
+  return out;
+}
+
+function execQuiet(file, args, opts = {}) {
+  return new Promise((resolve) => {
+    execFile(file, args, { windowsHide: true, timeout: 30_000, ...opts, shell: false }, (err, stdout, stderr) =>
+      resolve({ code: err ? (typeof err.code === "number" ? err.code : 1) : 0, stdout: String(stdout ?? ""), stderr: String(stderr ?? "") }));
+  });
+}
+
+const FIX = "node scripts/setup.mjs";
+const GPU_PROBE = "import json,torch;c=torch.cuda.is_available() and torch.cuda.device_count()>0;" +
+  "print(json.dumps([torch.__version__,c,torch.cuda.get_device_name(0) if c else None]))";
+
+// The doctor's detector lines: [{status: ok|warn|fail|info, check: "detector", detail}].
+export async function detectorReport(repoRoot, env = process.env, exec = execQuiet) {
+  const line = (status, detail) => ({ status, check: "detector", detail });
+  const { findDetector } = await import("./facade-detector.mjs");
+  const det = findDetector(repoRoot, env);
+  if (det?.source === "env") return [line("info", `using RHINO_FACADE_PYTHON / RHINO_FACADE_WEIGHTS: ${det.weights}`)];
+  const st = installState(repoRoot, env);
+  const firstBad = () => {
+    const r = st.manifest.default.find((run) => st.setup.verified[run] !== st.manifest.files[run].sha256) ?? st.manifest.default[0];
+    return st.manifest.files[r].asset;
+  };
+  const out = [];
+  if (det?.source === "repo") out.push(line("info", `using repo data/ (development): ${det.weights}`));
+  if (st.state === "none") return out.length ? out : [line("info", `not installed (optional): ${FIX}`)];
+  if (st.state === "pending") return [...out, line("warn", `setup not finished: ${FIX}`)];
+  if (st.state === "outdated") return [...out, line("warn", `models ${st.setup.version} < ${st.manifest.version}: ${FIX}`)];
+  if (st.state === "incomplete") return [...out, line("fail", `models ${firstBad()} sha256 mismatch: ${FIX}`)];
+  if (det?.source === "repo") return out;
+
+  const inst = installedDetector(repoRoot, env);
+  const py = await exec(inst.python, ["-c", GPU_PROBE], { timeout: 30_000 });
+  let probe = null;
+  try { probe = JSON.parse(py.stdout.trim().split(/\r?\n/).pop()); } catch { /* reported below */ }
+  if (py.code !== 0 || !Array.isArray(probe)) return [line("fail", `python ${inst.python} does not start: ${FIX}`)];
+  const [torchVersion, cuda, gpuName] = probe;
+  out.push(line("ok", `python ${inst.python} (torch ${torchVersion} ${st.setup.device ?? (cuda ? "cuda" : "cpu")})`));
+  for (const run of st.manifest.default) {
+    const { asset, sha256 } = st.manifest.files[run];
+    if (await sha256File(join(st.dir, "models", st.manifest.version, asset)) !== sha256) {
+      return [...out, line("fail", `models ${asset} sha256 mismatch: ${FIX}`)];
+    }
+  }
+  out.push(line("ok", `models ${st.manifest.default.join("+")} ${st.manifest.version}, sha256 verified`));
+  if (cuda) {
+    const smi = await exec("nvidia-smi", ["--query-gpu=driver_version", "--format=csv,noheader"], { timeout: 30_000 });
+    const driver = smi.code === 0 ? smi.stdout.trim().split(/\r?\n/)[0].split(",").pop().trim() : "?";
+    out.push(line("ok", `gpu ${gpuName}, driver ${driver}`));
+  } else {
+    out.push(line("warn", "gpu not available, running on CPU"));
   }
   return out;
 }

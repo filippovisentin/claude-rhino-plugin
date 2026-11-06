@@ -77,7 +77,8 @@ import { installDir, installState, installedDetector, readSetup } from "../scrip
 import { findDetector, runDetector } from "../scripts/facade-detector.mjs";
 
 const VENV_PY = process.platform === "win32" ? ["Scripts", "python.exe"] : ["bin", "python"];
-const SHA = { parts2m: "1".repeat(64), parts11s: "2".repeat(64) };
+import { createHash } from "node:crypto";
+const SHA = Object.fromEntries(["parts2m", "parts11s"].map((r) => [r, createHash("sha256").update(r).digest("hex")]));
 
 // A repo with models.json and the detector script, and a LOCALAPPDATA whose name has a space
 // and an accent, holding a complete install; over() edits setup.json before it is written.
@@ -105,7 +106,7 @@ function fakeInstall(over = (s) => s, { repoData = false } = {}) {
   mkdirSync(join(py, ".."), { recursive: true });
   writeFileSync(py, "");
   mkdirSync(join(dir, "models", "2026.11.06"), { recursive: true });
-  for (const r of ["parts2m", "parts11s"]) writeFileSync(join(dir, "models", "2026.11.06", r + ".pt"), "");
+  for (const r of ["parts2m", "parts11s"]) writeFileSync(join(dir, "models", "2026.11.06", r + ".pt"), r);
   const setup = over({ version: "2026.11.06", device: "cuda", python: py, verified: { ...SHA }, selftest: "ok", date: "2026-11-06T12:00:00Z" });
   if (setup !== undefined) writeFileSync(join(dir, "setup.json"), typeof setup === "string" ? setup : JSON.stringify(setup));
   return { repo, env, dir };
@@ -179,4 +180,67 @@ test("runDetector runs offline and labels the draft with the model", async () =>
   assert.equal(seen.env.YOLO_OFFLINE, "1");
   assert.equal(seen.env.YOLO_CONFIG_DIR, d.configDir);
   assert.equal(JSON.parse(text).model, "2026.11.06 parts2m+parts11s");
+});
+
+// --- Task 5: the doctor's detector lines -------------------------------------------------------
+import { detectorReport } from "../scripts/detector-install.mjs";
+
+// exec for the doctor: the detector's Python prints [torch version, cuda, gpu name]; nvidia-smi the driver.
+const doctorExec = ({ cuda = true, pyCode = 0 } = {}) => async (file, args) => {
+  if (/nvidia-smi/.test(file)) return { code: 0, stdout: "NVIDIA GeForce RTX 5070 Ti Laptop GPU, 596.36\n", stderr: "" };
+  if (pyCode) return { code: pyCode, stdout: "", stderr: "boom" };
+  return { code: 0, stdout: JSON.stringify(["2.11.0+cu128", cuda, cuda ? "NVIDIA GeForce RTX 5070 Ti Laptop GPU" : null]) + "\n", stderr: "" };
+};
+const lines = async (repo, env, exec = doctorExec()) => (await detectorReport(repo, env, exec)).map((r) => `${r.status} ${r.detail}`);
+
+test("doctor: a verified install on a GPU gives three OK lines", async () => {
+  const { repo, env, dir } = fakeInstall();
+  const l = await lines(repo, env);
+  assert.equal(l.length, 3);
+  assert.equal(l[0], `ok python ${join(dir, "venv", ...VENV_PY)} (torch 2.11.0+cu128 cuda)`);
+  assert.equal(l[1], "ok models parts2m+parts11s 2026.11.06, sha256 verified");
+  assert.equal(l[2], "ok gpu NVIDIA GeForce RTX 5070 Ti Laptop GPU, driver 596.36");
+});
+
+test("doctor: no GPU seen by torch is a warning", async () => {
+  const { repo, env } = fakeInstall();
+  const l = await lines(repo, env, doctorExec({ cuda: false }));
+  assert.equal(l[2], "warn gpu not available, running on CPU");
+});
+
+test("doctor: a Python that does not start fails", async () => {
+  const { repo, env, dir } = fakeInstall();
+  const l = await lines(repo, env, doctorExec({ pyCode: 1 }));
+  assert.ok(l.includes(`fail python ${join(dir, "venv", ...VENV_PY)} does not start: node scripts/setup.mjs`));
+});
+
+test("doctor: a model file changed on disk fails with its name", async () => {
+  const { repo, env, dir } = fakeInstall();
+  writeFileSync(join(dir, "models", "2026.11.06", "parts11s.pt"), "changed");
+  const l = await lines(repo, env);
+  assert.ok(l.includes("fail models parts11s.pt sha256 mismatch: node scripts/setup.mjs"));
+});
+
+test("doctor: not installed, unfinished, outdated, inconsistent", async () => {
+  const none = fakeInstall(() => undefined);
+  assert.deepEqual(await lines(none.repo, none.env), ["info not installed (optional): node scripts/setup.mjs"]);
+  const broken = fakeInstall(() => '{"version"');
+  assert.deepEqual(await lines(broken.repo, broken.env), ["info not installed (optional): node scripts/setup.mjs"]);
+  const pend = fakeInstall((s) => ({ ...s, selftest: "pending" }));
+  assert.deepEqual(await lines(pend.repo, pend.env), ["warn setup not finished: node scripts/setup.mjs"]);
+  const old = fakeInstall((s) => ({ ...s, version: "2026.10.01" }));
+  assert.deepEqual(await lines(old.repo, old.env), ["warn models 2026.10.01 < 2026.11.06: node scripts/setup.mjs"]);
+  const inc = fakeInstall((s) => ({ ...s, verified: { ...s.verified, parts11s: "3".repeat(64) } }));
+  assert.deepEqual(await lines(inc.repo, inc.env), ["fail models parts11s.pt sha256 mismatch: node scripts/setup.mjs"]);
+});
+
+test("doctor: the repo's data/ and the env variables are reported as such", async () => {
+  const dev = fakeInstall(() => undefined, { repoData: true });
+  const l = await lines(dev.repo, dev.env);
+  assert.equal(l.length, 1);
+  assert.match(l[0], /^info using repo data\/ \(development\): .*best\.pt/);
+  const { repo, env, dir } = fakeInstall();
+  const w = join(dir, "models", "2026.11.06", "parts2m.pt");
+  const l2 = await lines(repo, { ...env, RHINO_FACADE_PYTHON: join(dir, "venv", ...VENV_PY), RHINO_FACADE_WEIGHTS: w });
+  assert.deepEqual(l2, [`info using RHINO_FACADE_PYTHON / RHINO_FACADE_WEIGHTS: ${w}`]);
 });

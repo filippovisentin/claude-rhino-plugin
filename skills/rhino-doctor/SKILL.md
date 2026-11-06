@@ -25,7 +25,14 @@ Each line is `OK`, `WARN` or `FAIL`. Fix the first `FAIL` before looking at the 
 | `config` | Another Rhino MCP entry (often `uvx rhinomcp`) | That is the community plugin, which speaks a different protocol on the same port. Ask the user before removing it: `claude mcp remove <name> -s user` for `user:` lines, `-s local` (run in that project) for `local (project …)` lines, `-s project` for `project (….mcp.json)` lines. |
 | `mcp` | Timeout, error response, or "cannot start router" | Run the router path from the doctor output by hand and read its stderr. An error response usually means the Rhino-MCP-Platform package and router versions differ: update the package and restart Rhino. |
 | `rhino` | No running Rhino | Start Rhino 8. The router can also start one through its `spawn_slot` tool. |
-| `detector` | INFO: `detect_facade` off | Optional. The local facade detector needs a Python with `ultralytics` and trained weights (`data/venv-det`, `data/det-runs/{parts2m,parts11s,all11s}/weights/best.pt`, parts2m and parts11s fused when both exist, or `RHINO_FACADE_PYTHON` / `RHINO_FACADE_WEIGHTS`); see the README section "Local facade detector". Everything else works without it. |
+| `detector` | INFO: `not installed (optional)` | Optional: everything else works without it. To add the facade detector, run `node scripts/setup.mjs` in the plugin folder (Windows with an NVIDIA GPU; `--cpu` for a PC without one). It needs `uv`, `gh` signed in with access to the private repository, and about 8 GB free. |
+| `detector` | WARN: `setup not finished` | The setup was interrupted. Run `node scripts/setup.mjs` again: it skips what is done. |
+| `detector` | WARN: `models X < Y` | The plugin asks for newer models. Run `node scripts/setup.mjs` again: it downloads only the new weights. |
+| `detector` | FAIL: `… sha256 mismatch` | A model file differs from `models.json` (corrupted or replaced). Run `node scripts/setup.mjs` again; it downloads and checks it anew. |
+| `detector` | FAIL: `python … does not start` | The detector's Python is broken. Run `node scripts/setup.mjs` again: it rebuilds the venv under `%LOCALAPPDATA%\claude-rhino`. |
+| `detector` | WARN: `gpu not available, running on CPU` | The detector still works, about 0.4 s per photo. For the GPU: update the NVIDIA driver (570 or newer) and restart; a `--cpu` install stays on the CPU until the setup is run without `--cpu`. |
+| `detector` | Setup stops at `prereqs` | Follow its message: install the NVIDIA driver or use `--cpu`; install `uv`; `gh auth login`; ask to be added to the repository; free disk space. |
+| `detector` | INFO: `using repo data/` or `using RHINO_FACADE_…` | Development PC or a manual override: nothing to fix. |
 
 ## Symptom: "Invalid response frame length 1213486160"
 
