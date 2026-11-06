@@ -138,8 +138,8 @@ def main(argv):
         print(__doc__)
         return 2
     out_md = argv[1]
-    new = argv[2] if len(argv) > 2 else "parts11s"
-    old = argv[3:] or ["all11s", "cmp11s"]
+    new = argv[2] if len(argv) > 2 else "parts2m"
+    old = argv[3:] or ["parts11s", "all11s", "cmp11s"]
     runs = [r for r in [new] + old if os.path.exists(os.path.join(TD.RUNS, r, "weights", "best.pt"))]
     sizes = build_groups()
     lines = ["# Parts and scene models: report", "", time.strftime("%Y-%m-%d %H:%M"), "",

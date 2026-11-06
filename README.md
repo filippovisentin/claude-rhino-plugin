@@ -154,7 +154,7 @@ Straightening from four read corners against hznu's ground-truth homography (c_0
 
 ### Local facade detector (optional)
 
-A YOLO11s detector trained on your own machine reads facade elements in a few milliseconds and hands Claude a draft to correct (`detect_facade` tool). It is offered only when a Python with `ultralytics` and trained weights exist (by default `data/venv-det` and `data/det-runs/all11s/weights/best.pt`, or `RHINO_FACADE_PYTHON` and `RHINO_FACADE_WEIGHTS`). Nothing is downloaded at run time and nothing leaves the machine.
+A YOLO detector trained on your own machine reads facade elements in a few milliseconds and hands Claude a draft to correct (`detect_facade` tool). It is offered only when a Python with `ultralytics` and trained weights exist (by default `data/venv-det` and the first of `data/det-runs/parts2m`, `parts11s`, `all11s` with `weights/best.pt`, or `RHINO_FACADE_PYTHON` and `RHINO_FACADE_WEIGHTS`). Nothing is downloaded at run time and nothing leaves the machine.
 
 ```bash
 python -m venv data/venv-det
@@ -173,6 +173,8 @@ The test photos never enter training: the 22 CMP facades Claude read blind, 66 h
 | detector, CMP only | 0.62 | 0.83 | 0.40 | 0.53 | 0.62 | 0.36 | 0.47 |
 | detector, CMP + hznu | 0.62 | 0.84 | 0.56 | 0.49 | 0.58 | 0.67 | 0.59 |
 | detector, CMP + hznu + CFP | 0.62 | 0.83 | 0.60 | 0.53 | 0.60 | 0.64 | 0.71 |
+
+The parts model (`python tools/train_data.py parts`, then `train parts --model data/det-runs/yolo11m.pt --batch 4 --run parts2m`, YOLO11m) adds arches, oculi, pediments and finials from MonuMAI and Oxford photos. On unseen photos (`python tools/train_report.py report.md`, 2026-11-06) it scores mAP50 0.764 on CMP, 0.98 on modern facades, 0.83 on Oxford (all11s: 0.32) and 0.985 on monuments, and 0.62 pixel IoU on CMP against Claude's 0.52; it is the default when trained. Inference is about 15 ms per photo against 6 ms for YOLO11s.
 
 Draft plus Claude's own doors, shops and pillars: 0.63 on CMP. On four modern hznu photos scored through the whole straighten-and-read chain, openings 0.80 for the detector against 0.60 for Claude's readings. Claude still reads shops and pillars better. Licences: CMP is CC BY-SA, hznu CC BY 4.0, [CFP](https://github.com/wbw520/RTFP) states none, so a model trained with CFP is for personal use; train without `cfp` to get one you may share under CC BY-SA.
 

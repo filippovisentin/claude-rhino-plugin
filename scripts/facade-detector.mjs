@@ -2,8 +2,8 @@
 // tools/facade_yolo.py) on a photo and returns a px facade draft for the model to correct.
 // It is offered only when a Python with ultralytics and trained weights are present:
 //   RHINO_FACADE_PYTHON   python executable (default data/venv-det in this repo)
-//   RHINO_FACADE_WEIGHTS  weights file      (default data/det-runs/parts11s/weights/best.pt, the parts
-//                         model with arches, oculi, pediments and finials; else all11s)
+//   RHINO_FACADE_WEIGHTS  weights file      (default data/det-runs/parts2m/weights/best.pt, the YOLO11m
+//                         parts model with arches, oculi, pediments and finials; else parts11s, else all11s)
 // The image path is the only model input: it must be an existing image file, and it travels as
 // one argv entry to a fixed script (no shell), with a timeout and an output cap.
 import { execFile } from "node:child_process";
@@ -14,6 +14,9 @@ export const IMAGE_EXT = new Set([".jpg", ".jpeg", ".png", ".webp", ".bmp"]);
 export const MAX_IMAGE_BYTES = 50 * 1024 * 1024;
 const TIMEOUT_MS = 120_000;
 const MAX_OUTPUT = 2 * 1024 * 1024;
+// Best first. Report of 2026-11-06 (unseen photos, mAP50): parts2m 0.764 CMP / 0.982 modern / 0.834 Oxford,
+// parts11s 0.756 / 0.976 / 0.721, all11s 0.761 / 0.981 / 0.324 and no arches, pediments or finials.
+export const DEFAULT_RUNS = ["parts2m", "parts11s", "all11s"];
 
 export const DETECT_TOOL = {
   name: "detect_facade",
@@ -36,7 +39,7 @@ export function findDetector(repoRoot, env = process.env) {
   const python = env.RHINO_FACADE_PYTHON ||
     join(repoRoot, "data", "venv-det", process.platform === "win32" ? "Scripts/python.exe" : "bin/python");
   const run = (name) => join(repoRoot, "data", "det-runs", name, "weights", "best.pt");
-  const weights = env.RHINO_FACADE_WEIGHTS || [run("parts11s"), run("all11s")].find((p) => existsSync(p)) || run("all11s");
+  const weights = env.RHINO_FACADE_WEIGHTS || DEFAULT_RUNS.map(run).find((p) => existsSync(p)) || run("all11s");
   const script = join(repoRoot, "tools", "facade_yolo.py");
   if (![python, weights, script].every((p) => existsSync(p))) return null;
   const cfg = join(repoRoot, "data", "det-runs", "cfg");
