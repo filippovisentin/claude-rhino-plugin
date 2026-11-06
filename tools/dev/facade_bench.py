@@ -23,8 +23,10 @@ import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # tools/dev -> repo
 sys.path.insert(0, os.path.join(ROOT, "rhino"))
+sys.path.insert(0, os.path.join(ROOT, "tools"))
 from rhinospec import spec as S  # noqa: E402
 from rhinospec.plan import facade_elements  # noqa: E402
+from photo_tools import COLORS, expand_px, facade_part, px_boxes  # noqa: E402,F401  (shared with the runtime tools)
 
 DATA = os.path.join(ROOT, "data", "cmp")
 WORK = os.path.join(ROOT, "data", "work")
@@ -94,12 +96,6 @@ def ground_truth(fid):
     return annotation_to_spec(rect, objs, iw, ih, fid)
 
 
-def facade_part(spec):
-    parts = [p for p in spec.get("parts", []) if isinstance(p, dict) and p.get("type") == "facade"]
-    if len(parts) != 1:
-        raise S.SpecError("spec must hold exactly one facade part")
-    return S._facade(parts[0], "parts[0]")
-
 
 def masks(f):
     """Rasterises a validated facade into per-class sets of grid cells (fractions of w and h)."""
@@ -131,22 +127,6 @@ def image_masks(objs, boxes_px, img_w, img_h):
         fill(p, k, x0 / img_w, y0 / img_h, x1 / img_w, y1 / img_h)
     return g, p
 
-
-def expand_px(el):
-    """Pixel boxes of one px element: grid steps or explicit xs/ys start positions."""
-    x0, y0, x1, y1 = el["box"]
-    if "xs" in el or "ys" in el:
-        xs, ys = el.get("xs", [x0]), el.get("ys", [y0])
-        return [[x, y, x + x1 - x0, y + y1 - y0] for y in ys for x in xs]
-    nx, ny, dx, dy = el.get("grid", [1, 1, 0, 0])
-    return [[x0 + i * dx, y0 + j * dy, x1 + i * dx, y1 + j * dy] for j in range(ny) for i in range(nx)]
-
-
-def px_boxes(pred_spec):
-    """Pixel boxes of a px facade, grids expanded: [(k, [x0, y0, x1, y1])]."""
-    f = [q for q in pred_spec["parts"] if q.get("type") == "facade"][0]
-    facade_part(pred_spec)   # validates
-    return [(el["k"], b) for el in f["els"] for b in expand_px(el)]
 
 
 def score_px(fid, pred_spec):
@@ -187,11 +167,6 @@ def prep(fid, size=768):
         im.save(out, quality=85)
         return out, im.size
 
-
-COLORS = {"window": "#00a0ff", "door": "#ff8000", "shop": "#ff00ff", "balcony": "#00ff00", "cornice": "#ff0000",
-          "molding": "#ffff00", "pillar": "#00ffff", "sill": "#8000ff", "blind": "#008000", "deco": "#804000",
-          "rustic": "#a0a0a0", "quoin": "#606060", "spandrel": "#303840", "pediment": "#ffa0a0",
-          "clad": "#b0a080", "pipe": "#80c0c0", "finial": "#c0a0ff"}
 
 
 def overlay(fid, pred_spec):
