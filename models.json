@@ -1,9 +1,28 @@
 {
-  "version": "2026.11.06",
-  "release": "models-2026.11.06",
-  "default": ["parts2m", "parts11s"],
+  "version": "2026.11.07",
+  "release": "models-2026.11.07",
+  "default": [
+    "parts2m",
+    "parts11s"
+  ],
   "files": {
-    "parts2m": {"asset": "parts2m.pt", "sha256": "9f13d6ca2b414ba74545dcff8aa5db7364e97678ac507112d5a4260153048320", "bytes": 40566828},
-    "parts11s": {"asset": "parts11s.pt", "sha256": "a75b6a969f245b8432a0a0ce2e07171ee4f558b4496a073579dc228ea04cde0b", "bytes": 19243354}
-  }
+    "parts2m": {
+      "asset": "parts2m.pt",
+      "sha256": "9f13d6ca2b414ba74545dcff8aa5db7364e97678ac507112d5a4260153048320",
+      "bytes": 40566828
+    },
+    "parts11s": {
+      "asset": "parts11s.pt",
+      "sha256": "a75b6a969f245b8432a0a0ce2e07171ee4f558b4496a073579dc228ea04cde0b",
+      "bytes": 19243354
+    },
+    "scene2": {
+      "asset": "scene2.pt",
+      "sha256": "48e9fcbc88825c197b944b951f941507eafeb768a39d741425c0156dc05760bb",
+      "bytes": 20555876
+    }
+  },
+  "scene": [
+    "scene2"
+  ]
 }

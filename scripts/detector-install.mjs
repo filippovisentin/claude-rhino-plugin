@@ -33,8 +33,8 @@ export function installState(repoRoot, env = process.env) {
   const res = (state) => ({ state, manifest, setup, dir });
   if (!manifest || !setup) return res("none");
   if (setup.version !== manifest.version) return res("outdated");
-  const files = manifest.default.map((run) => join(dir, "models", manifest.version, manifest.files[run].asset));
-  const verified = manifest.default.every((run) => setup.verified[run] === manifest.files[run].sha256);
+  const files = modelRuns(manifest).map((run) => join(dir, "models", manifest.version, manifest.files[run].asset));
+  const verified = modelRuns(manifest).every((run) => setup.verified[run] === manifest.files[run].sha256);
   if (!verified || !files.every((f) => existsSync(f)) || !existsSync(join(dir, "venv", ...VENV_PYTHON))) {
     return setup.selftest === "ok" ? res("incomplete") : res("pending");
   }
@@ -54,11 +54,12 @@ export function installedDetector(repoRoot, env = process.env, { allowPending = 
     configDir: join(dir, "cfg"),
     version: manifest.version,
     model: `${manifest.version} ${manifest.default.join("+")}`,
+    scene: manifest.scene?.length ? join(dir, "models", manifest.version, manifest.files[manifest.scene[0]].asset) : null,
   };
 }
 
 function pendingOnlySelftest({ manifest, setup, dir }) {
-  return manifest.default.every((run) => setup.verified[run] === manifest.files[run].sha256 &&
+  return modelRuns(manifest).every((run) => setup.verified[run] === manifest.files[run].sha256 &&
     existsSync(join(dir, "models", manifest.version, manifest.files[run].asset))) &&
     existsSync(join(dir, "venv", ...VENV_PYTHON));
 }
@@ -70,12 +71,19 @@ function readJson(path) {
   try { return JSON.parse(readFileSync(path, "utf8")); } catch { return null; }
 }
 
+// Every model the install holds: the facade models of "default", then the scene model(s) of the
+// optional "scene" list (tools/silhouette.py).
+export function modelRuns(manifest) {
+  return [...manifest.default, ...(manifest.scene ?? [])];
+}
+
 // models.json of the repo, or null when it is missing or does not describe the default models fully.
 export function readManifest(repoRoot) {
   const m = readJson(join(repoRoot, "models.json"));
   if (!m || typeof m !== "object" || !nonEmpty(m.version) || !nonEmpty(m.release)) return null;
   if (!Array.isArray(m.default) || !m.default.length || !m.files || typeof m.files !== "object") return null;
-  for (const run of m.default) {
+  if (m.scene !== undefined && (!Array.isArray(m.scene) || !m.scene.every(nonEmpty))) return null;
+  for (const run of modelRuns(m)) {
     const f = m.files[run];
     if (!f || !nonEmpty(f.asset) || !SHA256.test(f.sha256 ?? "") || !Number.isInteger(f.bytes) || f.bytes <= 0) return null;
   }
@@ -132,7 +140,7 @@ export async function detectorReport(repoRoot, env = process.env, exec = execQui
   if (det?.source === "env") return [line("info", `using RHINO_FACADE_PYTHON / RHINO_FACADE_WEIGHTS: ${det.weights}`)];
   const st = installState(repoRoot, env);
   const firstBad = () => {
-    const r = st.manifest.default.find((run) => st.setup.verified[run] !== st.manifest.files[run].sha256) ?? st.manifest.default[0];
+    const r = modelRuns(st.manifest).find((run) => st.setup.verified[run] !== st.manifest.files[run].sha256) ?? st.manifest.default[0];
     return st.manifest.files[r].asset;
   };
   const out = [];
@@ -150,13 +158,13 @@ export async function detectorReport(repoRoot, env = process.env, exec = execQui
   if (py.code !== 0 || !Array.isArray(probe)) return [line("fail", `python ${inst.python} does not start: ${FIX}`)];
   const [torchVersion, cuda, gpuName] = probe;
   out.push(line("ok", `python ${inst.python} (torch ${torchVersion} ${st.setup.device ?? (cuda ? "cuda" : "cpu")})`));
-  for (const run of st.manifest.default) {
+  for (const run of modelRuns(st.manifest)) {
     const { asset, sha256 } = st.manifest.files[run];
     if (await sha256File(join(st.dir, "models", st.manifest.version, asset)) !== sha256) {
       return [...out, line("fail", `models ${asset} sha256 mismatch: ${FIX}`)];
     }
   }
-  out.push(line("ok", `models ${st.manifest.default.join("+")} ${st.manifest.version}, sha256 verified`));
+  out.push(line("ok", `models ${modelRuns(st.manifest).join("+")} ${st.manifest.version}, sha256 verified`));
   if (cuda) {
     const smi = await exec("nvidia-smi", ["--query-gpu=driver_version", "--format=csv,noheader"], { timeout: 30_000 });
     const driver = smi.code === 0 ? smi.stdout.trim().split(/\r?\n/)[0].split(",").pop().trim() : "?";

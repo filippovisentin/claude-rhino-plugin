@@ -1,6 +1,6 @@
 // Installs the facade detector for this plugin under %LOCALAPPDATA%\claude-rhino:
 //   node scripts/setup.mjs [--cpu]
-// A Python made by uv with pinned versions, the default models of models.json downloaded from this
+// A Python made by uv with pinned versions, the models of models.json downloaded from this
 // private repository's release and checked against their sha256, then a self-test on the fixture
 // photo. Every step is skipped when already done, so running it again is always safe. It deletes
 // only inside %LOCALAPPDATA%\claude-rhino, closes no process and changes no system setting.
@@ -8,7 +8,7 @@ import { execFile } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, statfsSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, isAbsolute } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { compareDraft, installDir, installedDetector, readManifest, readSetup, sha256File, VENV_PYTHON } from "./detector-install.mjs";
+import { compareDraft, installDir, installedDetector, modelRuns, readManifest, readSetup, sha256File, VENV_PYTHON } from "./detector-install.mjs";
 import { runDetector } from "./facade-detector.mjs";
 
 export const REPO = "filippovisentin/claude-rhino-plugin";
@@ -57,7 +57,7 @@ export async function setup({ repoRoot, env = process.env, cpu = false, exec = d
 
   // What is missing decides which checks are needed.
   const venvOk = existsSync(python) && state.device === device && (await run(python, ["-I", "-c", "import torch, ultralytics"], 60_000)).code === 0;
-  const missing = manifest.default.filter((r) => state.verified[r] !== manifest.files[r].sha256 ||
+  const missing = modelRuns(manifest).filter((r) => state.verified[r] !== manifest.files[r].sha256 ||
     !existsSync(join(modelDir, manifest.files[r].asset)));
 
   // 1. prereqs
@@ -145,7 +145,7 @@ export async function setup({ repoRoot, env = process.env, cpu = false, exec = d
     if (diff.length) return fail("selftest", `the self-test differs from the reference:\n  ${diff.join("\n  ")}`);
   }
 
-  return { ok: true, step: "done", message: `detector ready: models ${manifest.version} (${manifest.default.join("+")}), ${state.device}. Check with: node scripts/doctor.mjs` };
+  return { ok: true, step: "done", message: `detector ready: models ${manifest.version} (${modelRuns(manifest).join("+")}), ${state.device}. Check with: node scripts/doctor.mjs` };
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

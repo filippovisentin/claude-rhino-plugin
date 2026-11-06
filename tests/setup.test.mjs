@@ -24,8 +24,8 @@ function world() {
   writeFileSync(join(repo, "requirements-detector.txt"), "torch\n");
   writeFileSync(join(repo, "requirements-detector-cpu.txt"), "torch\n");
   writeFileSync(join(repo, "models.json"), JSON.stringify({
-    version: "2026.11.06", release: "models-2026.11.06", default: RUNS,
-    files: Object.fromEntries(RUNS.map((r) => [r, { asset: `${r}.pt`, sha256: sha(content(r)), bytes: content(r).length }])),
+    version: "2026.11.06", release: "models-2026.11.06", default: RUNS, scene: ["scene2"],
+    files: Object.fromEntries([...RUNS, "scene2"].map((r) => [r, { asset: `${r}.pt`, sha256: sha(content(r)), bytes: content(r).length }])),
   }));
   return { repo, env: { LOCALAPPDATA: join(root, "Filippo Visentì") } };
 }
@@ -64,11 +64,11 @@ test("a full setup installs, verifies both models and passes the self-test", asy
   const r = await run(w, x);
   assert.equal(r.ok, true, r.message);
   const s = readSetupJson(w);
-  assert.deepEqual(s.verified, { parts2m: sha(content("parts2m")), parts11s: sha(content("parts11s")) });
+  assert.deepEqual(s.verified, { parts2m: sha(content("parts2m")), parts11s: sha(content("parts11s")), scene2: sha(content("scene2")) });
   assert.equal(s.selftest, "ok");
   assert.equal(s.device, "cuda");
   assert.equal(s.version, "2026.11.06");
-  for (const r of RUNS) assert.ok(existsSync(join(installDir(w.env), "models", "2026.11.06", `${r}.pt`)));
+  for (const r of [...RUNS, "scene2"]) assert.ok(existsSync(join(installDir(w.env), "models", "2026.11.06", `${r}.pt`)));
   const install = x.calls.find((c) => c.args[0] === "pip");
   assert.ok(install.args.includes(join(w.repo, "requirements-detector.txt")));
 });
@@ -180,4 +180,18 @@ test("gh missing is reported as missing, not as signed out", async () => {
   const r = await run(w, fakeExec({ "gh auth status": { code: 127, stdout: "", stderr: "" } }));
   assert.equal(r.ok, false);
   assert.match(r.message, /gh not found/);
+});
+
+test("an install of an older version is outdated and the setup brings it up to date", async () => {
+  const w = world();
+  await run(w, fakeExec());
+  const m = JSON.parse(readFileSync(join(w.repo, "models.json"), "utf8"));
+  writeFileSync(join(w.repo, "models.json"), JSON.stringify({ ...m, version: "2026.11.07", release: "models-2026.11.07" }));
+  const { installState } = await import("../scripts/detector-install.mjs");
+  assert.equal(installState(w.repo, w.env).state, "outdated");
+  const x = fakeExec();
+  const r = await run(w, x);
+  assert.equal(r.ok, true, r.message);
+  assert.equal(x.calls.filter((c) => c.args[1] === "download").length, 3);
+  assert.equal(readSetupJson(w).version, "2026.11.07");
 });

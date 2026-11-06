@@ -34,7 +34,18 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # scene2 first: building mask IoU 0.824 against scene11s' 0.767 on 200 photos of the scene test split
 # (human building outlines), and an empty mask on 1 photo against 4.
 _RUNS = [os.path.join(ROOT, "data", "det-runs", r, "weights", "best.pt") for r in ("scene2", "scene11s")]
-SCENE = next((p for p in _RUNS if os.path.exists(p)), _RUNS[0])
+
+
+def scene_weights(env=os.environ):
+    """The scene model: the one installed by scripts/setup.mjs (RHINO_SCENE_WEIGHTS, set by
+    scripts/run-tool.mjs) when that file exists, else the repo's data/det-runs scene2, then scene11s."""
+    installed = env.get("RHINO_SCENE_WEIGHTS")
+    if installed and os.path.isfile(installed):
+        return installed
+    return next((p for p in _RUNS if os.path.exists(p)), _RUNS[0])
+
+
+SCENE = scene_weights()
 SIDE = 256          # working resolution of the comparison (long side, pixels)
 BANDS = 10
 

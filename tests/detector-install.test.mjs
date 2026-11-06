@@ -22,9 +22,10 @@ const writeManifest = (m) => {
 
 test("readManifest reads the repo's models.json", () => {
   const m = readManifest(repoRoot);
-  assert.equal(m.version, "2026.11.06");
-  assert.equal(m.release, "models-2026.11.06");
+  assert.equal(m.version, "2026.11.07");
+  assert.equal(m.release, "models-2026.11.07");
   assert.deepEqual(m.default, ["parts2m", "parts11s"]);
+  assert.deepEqual(m.scene, ["scene2"]);
 });
 
 test("readManifest refuses missing, truncated or inconsistent manifests", () => {
@@ -78,11 +79,11 @@ import { findDetector, runDetector } from "../scripts/facade-detector.mjs";
 
 const VENV_PY = process.platform === "win32" ? ["Scripts", "python.exe"] : ["bin", "python"];
 import { createHash } from "node:crypto";
-const SHA = Object.fromEntries(["parts2m", "parts11s"].map((r) => [r, createHash("sha256").update(r).digest("hex")]));
+const SHA = Object.fromEntries(["parts2m", "parts11s", "scene2"].map((r) => [r, createHash("sha256").update(r).digest("hex")]));
 
 // A repo with models.json and the detector script, and a LOCALAPPDATA whose name has a space
 // and an accent, holding a complete install; over() edits setup.json before it is written.
-function fakeInstall(over = (s) => s, { repoData = false } = {}) {
+function fakeInstall(over = (s) => s, { repoData = false, scene = false } = {}) {
   const root = tmp("di-inst-");
   const repo = join(root, "repo");
   mkdirSync(join(repo, "tools"), { recursive: true });
@@ -90,6 +91,10 @@ function fakeInstall(over = (s) => s, { repoData = false } = {}) {
   const m = manifest();
   m.files.parts2m.sha256 = SHA.parts2m;
   m.files.parts11s.sha256 = SHA.parts11s;
+  if (scene) {
+    m.scene = ["scene2"];
+    m.files.scene2 = { asset: "scene2.pt", sha256: SHA.scene2, bytes: 6 };
+  }
   writeFileSync(join(repo, "models.json"), JSON.stringify(m));
   if (repoData) {
     const py = join(repo, "data", "venv-det", ...VENV_PY);
@@ -106,8 +111,10 @@ function fakeInstall(over = (s) => s, { repoData = false } = {}) {
   mkdirSync(join(py, ".."), { recursive: true });
   writeFileSync(py, "");
   mkdirSync(join(dir, "models", "2026.11.06"), { recursive: true });
-  for (const r of ["parts2m", "parts11s"]) writeFileSync(join(dir, "models", "2026.11.06", r + ".pt"), r);
-  const setup = over({ version: "2026.11.06", device: "cuda", python: py, verified: { ...SHA }, selftest: "ok", date: "2026-11-06T12:00:00Z" });
+  const runs = scene ? ["parts2m", "parts11s", "scene2"] : ["parts2m", "parts11s"];
+  for (const r of runs) writeFileSync(join(dir, "models", "2026.11.06", r + ".pt"), r);
+  const verified = Object.fromEntries(runs.map((r) => [r, SHA[r]]));
+  const setup = over({ version: "2026.11.06", device: "cuda", python: py, verified, selftest: "ok", date: "2026-11-06T12:00:00Z" });
   if (setup !== undefined) writeFileSync(join(dir, "setup.json"), typeof setup === "string" ? setup : JSON.stringify(setup));
   return { repo, env, dir };
 }
@@ -264,4 +271,38 @@ test("the doctor's Python probe runs isolated (-I)", async () => {
   const seen = [];
   await detectorReport(repo, env, async (file, args) => { seen.push(args); return doctorExec()(file, args); });
   assert.equal(seen.find((a) => a.includes("-c"))[0], "-I");
+});
+
+// --- scene model ------------------------------------------------------------------------------
+import { modelRuns } from "../scripts/detector-install.mjs";
+
+test("readManifest: an optional scene list, every run of it described", () => {
+  const withScene = manifest({ scene: ["scene2"] });
+  withScene.files.scene2 = { asset: "scene2.pt", sha256: HEX, bytes: 1 };
+  assert.ok(readManifest(writeManifest(withScene)));
+  assert.deepEqual(modelRuns(withScene), ["parts2m", "parts11s", "scene2"]);
+  assert.deepEqual(modelRuns(manifest()), ["parts2m", "parts11s"]);
+  assert.equal(readManifest(writeManifest(manifest({ scene: ["scene2"] }))), null);
+  assert.equal(readManifest(writeManifest(manifest({ scene: "scene2" }))), null);
+  const badScene = manifest({ scene: ["scene2"] });
+  badScene.files.scene2 = { asset: "scene2.pt", sha256: "x", bytes: 1 };
+  assert.equal(readManifest(writeManifest(badScene)), null);
+});
+
+test("an install with the scene model hands its path over", () => {
+  const { repo, env, dir } = fakeInstall(undefined, { scene: true });
+  const d = installedDetector(repo, env);
+  assert.equal(d.scene, join(dir, "models", "2026.11.06", "scene2.pt"));
+  assert.equal(installedDetector(fakeInstall().repo, fakeInstall().env)?.scene ?? null, null);
+});
+
+test("a scene model not verified leaves the install incomplete", () => {
+  const { repo, env } = fakeInstall((s) => { const v = { ...s.verified }; delete v.scene2; return { ...s, verified: v }; }, { scene: true });
+  assert.equal(installState(repo, env).state, "incomplete");
+});
+
+test("doctor: the models line names the scene model too", async () => {
+  const { repo, env } = fakeInstall(undefined, { scene: true });
+  const l = await lines(repo, env);
+  assert.equal(l[1], "ok models parts2m+parts11s+scene2 2026.11.06, sha256 verified");
 });
