@@ -1,8 +1,9 @@
 # Facade detector, CPU only (scripts/setup.mjs --cpu). Same versions as the GPU file.
 --extra-index-url https://download.pytorch.org/whl/cpu
 torch==2.11.0+cpu
+torchvision==0.26.0+cpu
 ultralytics==8.4.202
 numpy==2.5.4
-opencv-python==5.0.0
+opencv-python==5.0.0.93
 Pillow==12.3.0
-psutil
+psutil==7.2.2
