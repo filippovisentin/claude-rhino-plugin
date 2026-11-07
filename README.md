@@ -60,6 +60,17 @@ args = ["C:/path/to/claude-rhino-plugin/scripts/launch-router.mjs"]
 
 Cursor and other clients take the same command and arguments. The ChatGPT desktop and web apps only connect to remote (HTTPS) MCP servers, so they can't launch this local server directly; use Codex with your ChatGPT plan instead.
 
+## Skill pack for other agents (Rhino Workbench)
+
+The same modelling knowledge is also packaged as plain agent skills, for agents that load skills instead of Claude Code plugins (Cursor, Copilot, Codex and others): [`agensi/rhino-workbench`](agensi/rhino-workbench), version 0.2.0. The ZIP is attached to the [skills-0.2.0 release](https://github.com/filippovisentin/claude-rhino-plugin/releases/tag/skills-0.2.0).
+
+- **rhino-model**: objects, furniture, massing, buildings from a footprint, columns and stairs from text and dimensions.
+- **rhino-facade**: facades and whole buildings from photos or a described elevation, with the full reading recipes.
+- **rhino-doctor**: connection diagnostics and setup.
+- **shared/**: delivered with every skill. It holds the runtime contract, the spec schema, typical dimensions and acceptance checks.
+
+The skills drive this runtime, which must be installed and connected as above. They build through `build_model`, or, when that tool is not exposed, through the same `rhinospec` builder via `run_python`. The photo helpers need only `node scripts/setup.mjs --tools`. Measured against the plugin's own skill on four annotated CMP facades (same model, photo and tools), the mean overlap per element class was 0.63 for the pack and 0.62 for the plugin. `tests/test_agensi_pack.py` keeps the pack's examples valid against this runtime.
+
 ## Check the connection
 
 ```bash
