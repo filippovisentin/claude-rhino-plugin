@@ -1,11 +1,12 @@
 """Reading aids on any photo, for Claude to check and refine a px facade reading.
 
-    node "<plugin>/scripts/run-tool.mjs" overlay PHOTO SPEC.json OUT.jpg
+    node "<plugin>/scripts/run-tool.mjs" overlay PHOTO SPEC.json OUT.jpg [--face front|right|back|left]
     node "<plugin>/scripts/run-tool.mjs" crop PHOTO x0 y0 x1 y1 OUT.jpg [--size 768]
 
 overlay  draws the px boxes of SPEC.json over the photo (grids expanded), one colour per element
-         family. SPEC.json is a spec with one facade part with px, or a detect_facade draft
-         ({"els": [...]}). The boxes must be in this photo's pixels.
+         family. SPEC.json is a spec with one facade part with px, a spec with one block (its front,
+         or the face named by --face, read with px), or a detect_facade draft ({"els": [...]}).
+         The boxes must be in this photo's pixels.
 crop     cuts box x0 y0 x1 y1 (this photo's pixels) and enlarges it so its long side is --size
          pixels; prints {"origin": [x0, y0], "scale": s}: a pixel (xc, yc) of the crop is
          (x0 + xc / s, y0 + yc / s) in the photo, the frame every px box is read in.
@@ -58,13 +59,28 @@ def draw_boxes(im, boxes, width=2):
     return im
 
 
-def overlay(photo, spec_path, out):
+def block_boxes(spec, face=None):
+    """Pixel boxes of one px face of the spec's block (default front): [(k, [x0, y0, x1, y1])]."""
+    from rhinospec import spec as S
+    S.validate(spec)
+    blocks = [p for p in spec["parts"] if isinstance(p, dict) and p.get("type") == "block"]
+    if len(blocks) != 1:
+        raise ValueError("spec must hold exactly one facade or one block part")
+    face = face or "front"
+    f = blocks[0].get("faces", {}).get(face)
+    if not f or not f.get("els") or "px" not in f:
+        raise ValueError("the block has no %s face read in pixels (px)" % face)
+    return [(el["k"], b) for el in f["els"] for b in expand_px(el)]
+
+
+def overlay(photo, spec_path, out, face=None):
     """Draws the spec's (or draft's) px boxes over the photo into out; returns the box count."""
     from PIL import Image
     with open(spec_path, encoding="utf-8") as fh:
         spec = json.load(fh)
-    if "parts" in spec:
-        boxes = px_boxes(spec)
+    if "parts" in spec:   # rhinospec's SpecError is a ValueError
+        has_facade = any(isinstance(p, dict) and p.get("type") == "facade" for p in spec["parts"])
+        boxes = block_boxes(spec, face) if face or not has_facade else px_boxes(spec)
     else:
         boxes = [(el["k"], b) for el in spec.get("els", []) for b in expand_px(el)]
     with Image.open(photo) as src:
@@ -91,8 +107,13 @@ def crop(photo, box, out, size=768):
 
 def main(argv):
     try:
-        if argv[:1] == ["overlay"] and len(argv) == 4:
-            print(json.dumps({"boxes": overlay(argv[1], argv[2], argv[3]), "out": argv[3]}))
+        if argv[:1] == ["overlay"] and len(argv) in (4, 6):
+            face = None
+            if len(argv) == 6:
+                if argv[4] != "--face":
+                    raise ValueError("unknown option %s" % argv[4])
+                face = argv[5]
+            print(json.dumps({"boxes": overlay(argv[1], argv[2], argv[3], face), "out": argv[3]}))
             return 0
         if argv[:1] == ["crop"] and len(argv) in (7, 9):
             size = 768
