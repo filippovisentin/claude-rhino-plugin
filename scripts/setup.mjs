@@ -1,7 +1,9 @@
 // Installs the facade detector for this plugin under %LOCALAPPDATA%\claude-rhino:
 //   node scripts/setup.mjs [--cpu]
+//   node scripts/setup.mjs --tools    only the light Python for the photo tools (venv-tools: numpy,
+//                                     Pillow, OpenCV; no GPU, no GitHub access, no models)
 // A Python made by uv with pinned versions, the models of models.json downloaded from this
-// private repository's release and checked against their sha256, then a self-test on the fixture
+// repository's release and checked against their sha256, then a self-test on the fixture
 // photo. Every step is skipped when already done, so running it again is always safe. It deletes
 // only inside %LOCALAPPDATA%\claude-rhino, closes no process and changes no system setting.
 import { execFile } from "node:child_process";
@@ -36,8 +38,27 @@ function defaultFreeBytes(path) {
 
 const inside = (dir, p) => { const r = relative(dir, p); return r && !r.startsWith("..") && !isAbsolute(r); };
 
-export async function setup({ repoRoot, env = process.env, cpu = false, exec = defaultExec, detect = runDetector,
+// The light Python of the photo tools (scripts/run-tool.mjs): needs only uv.
+export async function setupTools({ repoRoot, env = process.env, exec = defaultExec, log = console.log } = {}) {
+  const fail = (step, message) => ({ ok: false, step, message });
+  const run = (file, args, timeout = 120_000) => exec(file, args, { shell: false, windowsHide: true, timeout });
+  const venv = join(installDir(env), "venv-tools"), python = join(venv, ...VENV_PYTHON);
+  const check = ["-I", "-c", "import numpy, PIL, cv2"];
+  if (existsSync(python) && (await run(python, check, 60_000)).code === 0) {
+    return { ok: true, step: "done", message: `photo tools ready: ${python}` };
+  }
+  if ((await run("uv", ["--version"], 30_000)).code !== 0) return fail("prereqs", UV_HELP);
+  log(`Python: creating ${venv} for the photo tools`);
+  const mk = await run("uv", ["venv", "--clear", "--python", "3.12", venv], 600_000);
+  if (mk.code !== 0) return fail("python", `uv venv failed: ${mk.stderr.trim().slice(-400)}`);
+  const pip = await run("uv", ["pip", "install", "--python", python, "-r", join(repoRoot, "requirements-tools.txt")], 0);
+  if (pip.code !== 0) return fail("python", `uv pip install failed: ${pip.stderr.trim().slice(-400)}`);
+  return { ok: true, step: "done", message: `photo tools ready: ${python}` };
+}
+
+export async function setup({ repoRoot, env = process.env, cpu = false, tools = false, exec = defaultExec, detect = runDetector,
   freeBytes = defaultFreeBytes, rm = rmSync, log = console.log } = {}) {
+  if (tools) return setupTools({ repoRoot, env, exec, log });
   const fail = (step, message) => ({ ok: false, step, message });
   const run = (file, args, timeout = 120_000) => exec(file, args, { shell: false, windowsHide: true, timeout });
   const manifest = readManifest(repoRoot);
@@ -150,7 +171,7 @@ export async function setup({ repoRoot, env = process.env, cpu = false, exec = d
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
-  const r = await setup({ repoRoot, cpu: process.argv.includes("--cpu") });
+  const r = await setup({ repoRoot, cpu: process.argv.includes("--cpu"), tools: process.argv.includes("--tools") });
   console.log(r.ok ? r.message : `setup stopped at ${r.step}: ${r.message}`);
   process.exitCode = r.ok ? 0 : 1;
 }

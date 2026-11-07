@@ -27,6 +27,12 @@ class Pins(unittest.TestCase):
             self.assertEqual(set(pins(name)), {"torch", "torchvision", "ultralytics", "numpy", "opencv-python",
                                                "pillow", "psutil"}, name)
 
+    def test_tools_file_is_the_light_subset_with_the_same_versions(self):
+        tools, gpu = pins("requirements-tools.txt"), pins("requirements-detector.txt")
+        self.assertEqual(set(tools), {"numpy", "opencv-python", "pillow"})
+        for k, v in tools.items():
+            self.assertEqual(v, gpu[k], k)
+
     def test_cpu_file_differs_only_in_the_torch_build(self):
         gpu, cpu = pins("requirements-detector.txt"), pins("requirements-detector-cpu.txt")
         for k in gpu:

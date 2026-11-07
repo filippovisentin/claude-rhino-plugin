@@ -605,6 +605,8 @@ def _block(part, path, m=1.0):
         if not isinstance(face, dict):
             _fail(fp, "expected an object")
         _unknown(face, ("els", "px", "frac"), fp)
+        if face.get("els", []) == []:   # a blind side: a plain wall, as if the face were left out
+            continue
         sub = dict(face)
         sub.update({"w": b["w"] if key in ("front", "back") else b["d"], "h": b["h"], "t": b["t"],
                     "style": b["style"]})

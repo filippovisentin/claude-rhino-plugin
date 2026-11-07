@@ -195,3 +195,22 @@ test("an install of an older version is outdated and the setup brings it up to d
   assert.equal(x.calls.filter((c) => c.args[1] === "download").length, 3);
   assert.equal(readSetupJson(w).version, "2026.11.07");
 });
+
+test("--tools makes only the light Python: no GPU check, no gh, no models", async () => {
+  const w = world();
+  writeFileSync(join(w.repo, "requirements-tools.txt"), "numpy\n");
+  const x = fakeExec();
+  const r = await run(w, x, { tools: true });
+  assert.equal(r.ok, true, r.message);
+  const files = x.calls.map((c) => basename(c.file).replace(/\.exe$/, ""));
+  assert.ok(!files.includes("nvidia-smi") && !files.includes("gh"), files.join(","));
+  const venv = x.calls.find((c) => c.args[0] === "venv");
+  assert.equal(venv.args[venv.args.length - 1], join(installDir(w.env), "venv-tools"));
+  const pip = x.calls.find((c) => c.args[0] === "pip");
+  assert.ok(pip.args.includes(join(w.repo, "requirements-tools.txt")));
+  assert.equal(existsSync(join(installDir(w.env), "setup.json")), false);
+  // a second run finds it done and installs nothing
+  const y = fakeExec({ python: { code: 0, stdout: "", stderr: "" } });
+  assert.equal((await run(w, y, { tools: true })).ok, true);
+  assert.equal(y.calls.some((c) => c.args[0] === "venv" || c.args[0] === "pip"), false);
+});

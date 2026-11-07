@@ -1,0 +1,5 @@
+# Photo tools only (scripts/setup.mjs --tools): rectify, crop, overlay, photo3d, silhouette compare.
+# Same versions as requirements-detector.txt; no PyTorch, no models.
+numpy==2.5.4
+opencv-python==5.0.0.93
+Pillow==12.3.0

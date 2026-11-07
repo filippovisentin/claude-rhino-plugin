@@ -156,6 +156,11 @@ class Block(unittest.TestCase):
         self.assertTrue(close(bbox(w["front"]), [0, 0, 0, 6000, 400, 3000]))
         self.assertTrue(close(union([bbox(p) for p in ps]), [0, 0, 0, 6000, 4000, 3300]))
 
+    def test_a_face_without_elements_is_a_plain_wall(self):
+        # els:[] (or an empty face) is how readers write a blind side: same as leaving the face out
+        blind = dict(BLOCK, faces=dict(BLOCK["faces"], back={"els": []}, left={}))
+        self.assertEqual(len(parts(blind)), len(parts(BLOCK)))
+
     def test_builds_with_no_floating_parts(self):
         out = check({"units": "m", "parts": [BLOCK]})
         self.assertIn('"ok": true', out)
@@ -233,7 +238,7 @@ class Block(unittest.TestCase):
         bad = [
             (dict(BLOCK, faces={"top": {"els": [{"k": "window", "box": [1, 1, 1, 1]}]}}), "faces.top"),
             (dict(BLOCK, faces={"front": {"w": 3, "els": [{"k": "window", "box": [1, 1, 1, 1]}]}}), "faces.front"),
-            (dict(BLOCK, faces={"front": {"els": []}}), "faces.front.els"),
+            (dict(BLOCK, faces={"front": {"els": "none"}}), "faces.front.els"),
             (dict(BLOCK, faces=[1]), ".faces"),
             (dict(BLOCK, t=7), ".w"),
             (dict(BLOCK, t=0.01), ".t"),
