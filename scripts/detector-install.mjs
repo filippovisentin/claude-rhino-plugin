@@ -82,6 +82,7 @@ export function readManifest(repoRoot) {
   const m = readJson(join(repoRoot, "models.json"));
   if (!m || typeof m !== "object" || !nonEmpty(m.version) || !nonEmpty(m.release)) return null;
   if (!Array.isArray(m.default) || !m.default.length || !m.files || typeof m.files !== "object") return null;
+  if (m.repo !== undefined && !/^[\w.-]+\/[\w.-]+$/.test(m.repo ?? "")) return null;
   if (m.scene !== undefined && (!Array.isArray(m.scene) || !m.scene.every(nonEmpty))) return null;
   for (const run of modelRuns(m)) {
     const f = m.files[run];

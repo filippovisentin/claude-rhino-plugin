@@ -19,7 +19,6 @@ It adds:
 - Rhino 8 with the **Rhino-MCP-Platform** package (in Rhino: `_PackageManager`, then search for it)
 - Node.js 18 or newer on `PATH`
 - Claude Code
-- Access to this repository: it is private, so ask to be added as a collaborator, then sign in once with the [GitHub CLI](https://cli.github.com) so `git` can clone it (`gh auth login`, then `gh auth setup-git`)
 
 Tested on Windows 11 (x64) with Rhino-MCP-Platform 0.3.0. The macOS path lookup is written but not yet tested.
 
@@ -39,7 +38,7 @@ claude plugin install rhino@claude-rhino
 
 Start a new Claude session afterwards so the MCP server loads.
 
-Modelling from text, prompts and images works right away. For the facade detector and the other trained models (Windows with an NVIDIA GPU, or `--cpu`), run `node scripts/setup.mjs` once from the plugin folder, or ask Claude to "set up the rhino plugin's detector"; see [On a studio PC](#on-a-studio-pc).
+Modelling from text, prompts and images works right away. For the photo tools (straightening, zoomed crops, overlays, camera solve) run `node scripts/setup.mjs --tools` once from the plugin folder: a small Python (numpy, Pillow, OpenCV, about 150 MB) made with [`uv`](https://docs.astral.sh/uv/getting-started/installation/), no GPU and no models. For the facade detector and the other trained models (Windows with an NVIDIA GPU, or `--cpu`), run `node scripts/setup.mjs` once from the plugin folder, or ask Claude to "set up the rhino plugin's detector"; see [On a studio PC](#on-a-studio-pc).
 
 ### Other MCP clients (your own Claude or ChatGPT plan)
 
@@ -159,15 +158,15 @@ Straightening from four read corners against hznu's ground-truth homography (c_0
 
 A YOLO detector reads facade elements in a few milliseconds and hands Claude a draft to correct (`detect_facade` tool). It is offered only when a Python with `ultralytics` and trained weights exist, looked up in this order: `RHINO_FACADE_PYTHON` and `RHINO_FACADE_WEIGHTS`; the install made by `node scripts/setup.mjs` under `%LOCALAPPDATA%\claude-rhino` (used only when it matches `models.json` and passed its self-test); `data/venv-det` with the first of `data/det-runs/parts2m`, `parts11s`, `all11s` (`weights/best.pt`) on the machine that trains them. It runs on the GPU when there is one and on the CPU otherwise (about 0.4 s per photo; `RHINO_FACADE_DEVICE=cpu` forces it), and the draft says which (`device`) and which models (`model`). Nothing is downloaded at run time and nothing leaves the machine.
 
-The plugin's own tools (straightening, building outline, camera solve, overlay and zoomed crop) run with the detector's Python through one command, which accepts only those tools: `node "<plugin>/scripts/run-tool.mjs" rectify|photo3d|silhouette|overlay|crop ...`. Training, benchmarks and experiments are in `tools/dev/` and need the datasets in `data/`.
+The plugin's own tools (straightening, building outline, camera solve, overlay and zoomed crop) run with the detector's Python, or without a detector with the light Python of `node scripts/setup.mjs --tools` (or `RHINO_TOOLS_PYTHON`), through one command, which accepts only those tools: `node "<plugin>/scripts/run-tool.mjs" rectify|photo3d|silhouette|overlay|crop ...`. Only `silhouette mask` needs a model (the scene model of the detector setup). Training, benchmarks and experiments are in `tools/dev/` and need the datasets in `data/`.
 
 #### On a studio PC
 
-The trained weights are published as assets of a release of this private repository; `models.json` names the release and the sha256 of every file, and `MODELS-LICENSE.md` limits them to internal use. `node scripts/setup.mjs` (from the plugin folder) checks the NVIDIA driver (570 or newer), creates a pinned Python with `uv` in `%LOCALAPPDATA%\claude-rhino\venv` (about 8 GB with PyTorch for CUDA 12.8; `--cpu` installs the CPU build, about 2 GB), downloads the weights with `gh`, keeps them only if their sha256 matches, and runs the detector on `tests/fixtures/detector` against its reference draft. Plugin updates don't touch that folder; running the setup again skips what is done and fetches only new models.
+The trained weights are published as assets of a release of the private repository `filippovisentin/claude-rhino-models`; `models.json` names that repository, the release and the sha256 of every file, and `MODELS-LICENSE.md` limits them to internal use. `node scripts/setup.mjs` (from the plugin folder) checks the NVIDIA driver (570 or newer), creates a pinned Python with `uv` in `%LOCALAPPDATA%\claude-rhino\venv` (about 8 GB with PyTorch for CUDA 12.8; `--cpu` installs the CPU build, about 2 GB), downloads the weights with `gh`, keeps them only if their sha256 matches, and runs the detector on `tests/fixtures/detector` against its reference draft. Plugin updates don't touch that folder; running the setup again skips what is done and fetches only new models.
 
 Setting up a colleague's PC:
 
-1. Add them to this GitHub repository.
+1. Add them to `filippovisentin/claude-rhino-models` (the weights; the plugin itself is public).
 2. They run `gh auth login` and `gh auth setup-git` (and install [`uv`](https://docs.astral.sh/uv/getting-started/installation/) if missing).
 3. They install the plugin (`claude plugin marketplace add filippovisentin/claude-rhino-plugin`, then `claude plugin install rhino@claude-rhino`).
 4. From the plugin folder: `node scripts/setup.mjs`.

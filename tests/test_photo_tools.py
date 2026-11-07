@@ -60,6 +60,25 @@ class Tools(unittest.TestCase):
             json.dump({"img": [400, 300], "px": [20, 20, 380, 280], "els": [{"k": "door", "box": [10, 10, 40, 60]}]}, fh)
         self.assertEqual(PT.overlay(self.photo, draft, os.path.join(self.dir, "o.jpg")), 1)
 
+    def test_overlay_takes_a_block_face(self):
+        # a whole building: the front by default, any other px face with --face
+        block = {"parts": [{"type": "block", "w": 12, "d": 10, "h": 10, "faces": {
+            "front": {"px": [20, 20, 380, 280], "els": [{"k": "window", "box": [50, 50, 90, 110], "grid": [3, 1, 100, 0]}]},
+            "right": {"px": [0, 0, 400, 300], "els": [{"k": "door", "box": [10, 200, 60, 300]}]},
+            "back": {"els": []}}}]}
+        spec = os.path.join(self.dir, "block.json")
+        with open(spec, "w") as fh:
+            json.dump(block, fh)
+        self.assertEqual(PT.overlay(self.photo, spec, os.path.join(self.dir, "b.jpg")), 3)
+        self.assertEqual(PT.overlay(self.photo, spec, os.path.join(self.dir, "r.jpg"), face="right"), 1)
+        for bad in ("back", "top"):
+            with self.assertRaises(ValueError):
+                PT.overlay(self.photo, spec, os.path.join(self.dir, "x.jpg"), face=bad)
+        p = subprocess.run([sys.executable, "-I", os.path.join(ROOT, "tools", "photo_tools.py"), "overlay", self.photo,
+                            spec, os.path.join(self.dir, "c.jpg"), "--face", "right"], capture_output=True, text=True, timeout=60)
+        self.assertEqual(p.returncode, 0, p.stderr[-400:])
+        self.assertEqual(json.loads(p.stdout)["boxes"], 1)
+
     def test_command_line_prints_the_crop_json(self):
         out = os.path.join(self.dir, "c.jpg")
         p = subprocess.run([sys.executable, "-I", os.path.join(ROOT, "tools", "photo_tools.py"), "crop", self.photo,

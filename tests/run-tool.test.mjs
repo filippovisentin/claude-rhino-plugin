@@ -80,3 +80,34 @@ test("the command line refuses an unknown tool with exit code 2", async () => {
   });
   assert.equal(code, 2);
 });
+
+// The photo tools (straightening, crop, overlay, camera solve) need numpy, Pillow and OpenCV, not
+// the detector's weights: without a detector they run with the light Python of setup.mjs --tools.
+test("without the detector the photo tools use the light tools Python", () => {
+  const { repo, env } = world({ install: false });
+  const py = join(installDir(env), "venv-tools", ...VENV_PYTHON);
+  mkdirSync(join(py, ".."), { recursive: true });
+  writeFileSync(py, "");
+  const r = toolCommand(repo, env, "rectify", ["a.jpg", "1,2 3,4 5,6 7,8", "out.jpg"]);
+  assert.equal(r.error, undefined);
+  assert.equal(r.python, py);
+  assert.equal(r.env.RHINO_SCENE_WEIGHTS, undefined);
+});
+
+test("RHINO_TOOLS_PYTHON is used when there is no detector", () => {
+  const { repo, env } = world({ install: false });
+  const py = join(repo, "my python.exe");
+  writeFileSync(py, "");
+  assert.equal(toolCommand(repo, { ...env, RHINO_TOOLS_PYTHON: py }, "crop", []).python, py);
+  assert.match(toolCommand(repo, { ...env, RHINO_TOOLS_PYTHON: join(repo, "missing.exe") }, "crop", []).error, /setup\.mjs --tools/);
+});
+
+test("the detector install is still preferred: it brings the scene model", () => {
+  const { repo, env } = world();
+  const py = join(installDir(env), "venv-tools", ...VENV_PYTHON);
+  mkdirSync(join(py, ".."), { recursive: true });
+  writeFileSync(py, "");
+  const r = toolCommand(repo, env, "silhouette", []);
+  assert.ok(r.python.endsWith(join("venv", ...VENV_PYTHON)));
+  assert.ok(r.env.RHINO_SCENE_WEIGHTS.endsWith("scene2.pt"));
+});
