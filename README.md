@@ -162,14 +162,15 @@ The plugin's own tools (straightening, building outline, camera solve, overlay a
 
 #### On a studio PC
 
-The trained weights are published as assets of a release of this repository; `models.json` names the release and the sha256 of every file, and `MODELS-LICENSE.md` limits them to internal use. `node scripts/setup.mjs` (from the plugin folder) checks the NVIDIA driver (570 or newer), creates a pinned Python with `uv` in `%LOCALAPPDATA%\claude-rhino\venv` (about 8 GB with PyTorch for CUDA 12.8; `--cpu` installs the CPU build, about 2 GB), downloads the weights with `gh`, keeps them only if their sha256 matches, and runs the detector on `tests/fixtures/detector` against its reference draft. Plugin updates don't touch that folder; running the setup again skips what is done and fetches only new models.
+The trained weights are published as assets of a release of the private repository `filippovisentin/claude-rhino-models`; `models.json` names that repository, the release and the sha256 of every file, and `MODELS-LICENSE.md` limits them to internal use. `node scripts/setup.mjs` (from the plugin folder) checks the NVIDIA driver (570 or newer), creates a pinned Python with `uv` in `%LOCALAPPDATA%\claude-rhino\venv` (about 8 GB with PyTorch for CUDA 12.8; `--cpu` installs the CPU build, about 2 GB), downloads the weights with `gh`, keeps them only if their sha256 matches, and runs the detector on `tests/fixtures/detector` against its reference draft. Plugin updates don't touch that folder; running the setup again skips what is done and fetches only new models.
 
 Setting up a colleague's PC:
 
-1. They run `gh auth login` and `gh auth setup-git` (and install [`uv`](https://docs.astral.sh/uv/getting-started/installation/) if missing).
-2. They install the plugin (`claude plugin marketplace add filippovisentin/claude-rhino-plugin`, then `claude plugin install rhino@claude-rhino`).
-3. From the plugin folder: `node scripts/setup.mjs`.
-4. `node scripts/doctor.mjs` shows three `OK` detector lines (python, models, gpu); then give Claude a facade photo.
+1. Add them to `filippovisentin/claude-rhino-models` (the weights; the plugin itself is public).
+2. They run `gh auth login` and `gh auth setup-git` (and install [`uv`](https://docs.astral.sh/uv/getting-started/installation/) if missing).
+3. They install the plugin (`claude plugin marketplace add filippovisentin/claude-rhino-plugin`, then `claude plugin install rhino@claude-rhino`).
+4. From the plugin folder: `node scripts/setup.mjs`.
+5. `node scripts/doctor.mjs` shows three `OK` detector lines (python, models, gpu); then give Claude a facade photo.
 
 Training (below) stays on the machine with the datasets.
 

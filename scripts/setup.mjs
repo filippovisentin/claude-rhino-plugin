@@ -2,8 +2,8 @@
 //   node scripts/setup.mjs [--cpu]
 //   node scripts/setup.mjs --tools    only the light Python for the photo tools (venv-tools: numpy,
 //                                     Pillow, OpenCV; no GPU, no GitHub access, no models)
-// A Python made by uv with pinned versions, the models of models.json downloaded from this
-// repository's release and checked against their sha256, then a self-test on the fixture
+// A Python made by uv with pinned versions, the models of models.json downloaded from the release of
+// the private weights repository (models.json "repo") and checked against their sha256, then a self-test on the fixture
 // photo. Every step is skipped when already done, so running it again is always safe. It deletes
 // only inside %LOCALAPPDATA%\claude-rhino, closes no process and changes no system setting.
 import { execFile } from "node:child_process";
@@ -13,7 +13,8 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { compareDraft, installDir, installedDetector, modelRuns, readManifest, readSetup, sha256File, VENV_PYTHON } from "./detector-install.mjs";
 import { runDetector } from "./facade-detector.mjs";
 
-export const REPO = "filippovisentin/claude-rhino-plugin";
+// Where the weights are published (models.json "repo"): private, internal use only (MODELS-LICENSE.md).
+export const REPO = "filippovisentin/claude-rhino-models";
 const MIN_DRIVER = 570; // CUDA 12.8
 const GB = 2 ** 30;
 const UV_HELP = "uv not found: install it (https://docs.astral.sh/uv/getting-started/installation/), then run the setup again";
@@ -63,6 +64,7 @@ export async function setup({ repoRoot, env = process.env, cpu = false, tools = 
   const run = (file, args, timeout = 120_000) => exec(file, args, { shell: false, windowsHide: true, timeout });
   const manifest = readManifest(repoRoot);
   if (!manifest) return fail("prereqs", `models.json missing or invalid in ${repoRoot}`);
+  const repo = manifest.repo ?? REPO;
   const dir = installDir(env);
   const device = cpu ? "cpu" : "cuda";
   const venv = join(dir, "venv"), python = join(venv, ...VENV_PYTHON);
@@ -95,8 +97,8 @@ export async function setup({ repoRoot, env = process.env, cpu = false, tools = 
     const auth = await run("gh", ["auth", "status"], 30_000);
     if (auth.code === 127) return fail("prereqs", "gh not found: install GitHub CLI (https://cli.github.com), then run gh auth login");
     if (auth.code !== 0) return fail("prereqs", "gh is not signed in: run gh auth login");
-    if ((await run("gh", ["release", "view", manifest.release, "--repo", REPO], 30_000)).code !== 0) {
-      return fail("prereqs", `no access to release ${manifest.release} of ${REPO}: ask to be added to the repository, then run gh auth login`);
+    if ((await run("gh", ["release", "view", manifest.release, "--repo", repo], 30_000)).code !== 0) {
+      return fail("prereqs", `no access to release ${manifest.release} of ${repo} (private, internal use only): ask to be added to that repository, then run gh auth login`);
     }
   }
   if (!venvOk || missing.length) {
@@ -135,7 +137,7 @@ export async function setup({ repoRoot, env = process.env, cpu = false, tools = 
       rmSync(tmpDir, { recursive: true, force: true });
       mkdirSync(tmpDir, { recursive: true });
       log(`Model ${r}: downloading ${asset} from ${manifest.release}`);
-      const dl = await run("gh", ["release", "download", manifest.release, "--repo", REPO, "-p", asset, "-D", tmpDir, "--clobber"], 600_000);
+      const dl = await run("gh", ["release", "download", manifest.release, "--repo", repo, "-p", asset, "-D", tmpDir, "--clobber"], 600_000);
       const got = join(tmpDir, asset);
       if (dl.code !== 0 || !existsSync(got)) {
         return fail("models", `could not download ${asset} from release ${manifest.release}: ${dl.stderr.trim().slice(-300)}`);

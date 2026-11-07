@@ -26,6 +26,7 @@ test("readManifest reads the repo's models.json", () => {
   assert.equal(m.release, "models-2026.11.07");
   assert.deepEqual(m.default, ["parts2m", "parts11s"]);
   assert.deepEqual(m.scene, ["scene2"]);
+  assert.equal(m.repo, "filippovisentin/claude-rhino-models");   // private: the weights are internal use only
 });
 
 test("readManifest refuses missing, truncated or inconsistent manifests", () => {
@@ -43,6 +44,8 @@ test("readManifest refuses missing, truncated or inconsistent manifests", () => 
   const bytes = manifest();
   bytes.files.parts11s.bytes = 0;
   assert.equal(readManifest(writeManifest(bytes)), null);
+  for (const repo of ["", "nobody", "a/b/c", "a b/c", 7]) assert.equal(readManifest(writeManifest(manifest({ repo }))), null, String(repo));
+  assert.ok(readManifest(writeManifest(manifest({ repo: "studio/models" }))));
   assert.ok(readManifest(writeManifest(manifest())));
 });
 

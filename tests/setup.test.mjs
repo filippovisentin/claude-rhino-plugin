@@ -214,3 +214,14 @@ test("--tools makes only the light Python: no GPU check, no gh, no models", asyn
   assert.equal((await run(w, y, { tools: true })).ok, true);
   assert.equal(y.calls.some((c) => c.args[0] === "venv" || c.args[0] === "pip"), false);
 });
+
+test("the models come from the repository models.json names", async () => {
+  const w = world();
+  const m = JSON.parse(readFileSync(join(w.repo, "models.json"), "utf8"));
+  writeFileSync(join(w.repo, "models.json"), JSON.stringify({ ...m, repo: "studio/private-models" }));
+  const x = fakeExec();
+  assert.equal((await run(w, x)).ok, true);
+  const gh = x.calls.filter((c) => c.args[0] === "release");
+  assert.ok(gh.length >= 2);
+  for (const c of gh) assert.equal(c.args[c.args.indexOf("--repo") + 1], "studio/private-models");
+});
