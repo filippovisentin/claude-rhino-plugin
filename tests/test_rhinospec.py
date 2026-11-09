@@ -157,6 +157,14 @@ class Buildings(unittest.TestCase):
         b.update(kw)
         return validate(spec(b))["parts"]
 
+    def test_opening_errors_name_the_part(self):
+        too_many = [{"wall": 0, "offset": 1, "width": 2, "height": 1, "sill": 1, "count": 5, "gap": 1}]
+        with self.assertRaisesRegex(SpecError, r"^parts\[0\]\.openings\[0\]: copy 3 ends at"):
+            self.build(openings=too_many)
+        too_tall = [{"wall": 0, "offset": 1, "width": 1, "height": 3, "sill": 1}]
+        with self.assertRaisesRegex(SpecError, r"^parts\[0\]\.openings\[0\]: sill \+ height"):
+            self.build(openings=too_tall)
+
     def test_counts(self):
         parts = self.build()
         # per floor: 1 slab + 4 walls, then roof slab

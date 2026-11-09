@@ -93,6 +93,12 @@ def _intersect(brep, keep, tol):
             return brep
         if _inside(keep, brep, tol):
             return keep
+        # Solids that only touch (or miss) share no volume: growing keep would invent a sliver
+        # as thick as the growth, with no warning. Only overlapping solids get the retry.
+        a, k = brep.GetBoundingBox(True), keep.GetBoundingBox(True)
+        if min(min(a.Max.X, k.Max.X) - max(a.Min.X, k.Min.X), min(a.Max.Y, k.Max.Y) - max(a.Min.Y, k.Min.Y),
+               min(a.Max.Z, k.Max.Z) - max(a.Min.Z, k.Min.Z)) <= 2.0 * tol:
+            return None
         box = keep.GetBoundingBox(True)
         size = max(box.Max.X - box.Min.X, box.Max.Y - box.Min.Y, box.Max.Z - box.Min.Z)
         if size > 0:
@@ -109,6 +115,10 @@ def _extrude(curve, vec, tol):
     if srf is None:
         return None
     brep = srf.ToBrep()
+    # A polyline extrudes to one kinked face. Booleans on kinked faces can leave the cutter's faces
+    # unflipped: an arched frame (outline minus inner outline) came out with an undefined
+    # orientation and points outside it reading as inside. Planar faces boolean cleanly.
+    brep.Faces.SplitKinkyFaces(Rhino.RhinoMath.DefaultAngleTolerance, True)
     capped = brep.CapPlanarHoles(tol)
     return _outward(capped or brep)
 
@@ -177,9 +187,14 @@ def _local_brep(p, tol):
         w, h = p["size"]
         xz = lambda q: rg.Point3d(q[0], 0, q[1])
         loops = [_closed_polyline([[0, 0], [w, 0], [w, h], [0, h]], xz)]
+        gap = 2.0 * tol   # a hole closer to the edge than the tolerance makes CreatePlanarBreps fail
         for hole in p["holes"]:
             shape = OPENING_SHAPES[hole[4]] if len(hole) == 5 else "rect"
-            loops.append(_closed_polyline(opening_outline(hole[0], hole[1], hole[2], hole[3], shape), xz))
+            u0, v0 = max(hole[0], gap), max(hole[1], gap)
+            u1, v1 = min(hole[0] + hole[2], w - gap), min(hole[1] + hole[3], h - gap)
+            if u1 - u0 <= gap or v1 - v0 <= gap:
+                continue
+            loops.append(_closed_polyline(opening_outline(u0, v0, u1 - u0, v1 - v0, shape), xz))
         faces = rg.Brep.CreatePlanarBreps(_net(rg.Curve, loops), tol)
         if not faces or len(faces) != 1:
             return None
