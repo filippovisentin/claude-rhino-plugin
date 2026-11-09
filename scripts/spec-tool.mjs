@@ -12,8 +12,8 @@ import { DETECT_TOOL, checkConf, checkImage, runDetector } from "./facade-detect
 export const MAX_SPEC_BYTES = 1_000_000;
 const SLOT_RE = /^[A-Za-z0-9_.-]{1,64}$/;
 
-const SPEC_DOC = `JSON spec -> Rhino solids. {"units":"mm|cm|m","layer":"Name","clear":true,"parts":[...]}. clear:true replaces the layer's last build.
-Every part: type, name, at:[x,y,z], rot (deg about Z through at), tilt:[deg x, deg y] (before rot), color "#rrggbb", cut:[parts], group (own sublayer). "lang":"it": Italian layer names.
+const SPEC_DOC = `JSON spec -> Rhino solids. {"units":"mm|cm|m","layer":"Name","clear":true,"lang":"it","parts":[...]}. clear:true replaces the layer's last build.
+Every part: type, name, at:[x,y,z], rot (deg about Z through at), tilt:[deg x, deg y] (before rot), color "#rrggbb", cut:[parts], group (own sublayer).
 Primitives: box size:[x,y,z] (corner at at) | cyl r,h | cone r,h,r2 | sphere r | torus R,r | extrude pts:[[x,y]..],h | prism pts:[[x,z]..],len (profile in XZ, along +y) | revolve profile:[[r,z]..] | loft sections:[{pts,z}..] | pipe path:[[x,y,z]..] (relative to at),r | panel size:[w,h],t,holes:[[u,v,w,h]..].
 array: of:part, n:[nx,ny,nz], step:[dx,dy,dz], turn (deg/copy about pivot:[x,y]: spirals).
 building: footprint:[[x,y]..], floors, floor_h, wall_t, slab_t, roof, roof_h, openings:[{wall,offset,width,height,sill,floor,count,gap}].

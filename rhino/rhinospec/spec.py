@@ -790,7 +790,11 @@ def validate(spec):
         if t == "array":
             parts.extend(_array(p, path))
         elif t == "building":
-            parts.extend(plan_building(_building(p, path, PER_M[units])))
+            b = _building(p, path, PER_M[units])
+            try:
+                parts.extend(plan_building(b))
+            except SpecError as e:   # plan_building names the opening, not the part
+                raise SpecError("%s.%s" % (path, e))
         elif t == "facade":
             f = _facade(p, path, PER_M[units])
             if _needs_block(f):

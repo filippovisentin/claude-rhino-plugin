@@ -1,6 +1,6 @@
 {
   "name": "rhino",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "repository": "https://github.com/filippovisentin/claude-rhino-plugin",
   "description": "Connects Claude Code to Rhino 8 through McNeel's Rhino-MCP-Platform router. Models from text, prompts and images through a compact JSON spec (with an optional local facade detector), plus a doctor skill for connection problems.",
   "author": {
