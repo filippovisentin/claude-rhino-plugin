@@ -113,6 +113,22 @@ def _extrude(curve, vec, tol):
     return _outward(capped or brep)
 
 
+def _cap(loft, sections, tol):
+    """Caps a loft's open ends. A section edge about as short as the document tolerance (the 1 cm
+    ridge of a hip roof in a metre document with 0.01 tolerance) makes CapPlanarHoles return an
+    invalid brep, so it is retried with a tolerance well below the shortest edge."""
+    capped = loft.CapPlanarHoles(tol)
+    if capped is not None and capped.IsValid:
+        return capped
+    shortest = min(((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2) ** 0.5
+                   for s in sections for a, b in zip(s["pts"], s["pts"][1:] + s["pts"][:1]))
+    if shortest > 0 and shortest / 4.0 < tol:
+        capped = loft.CapPlanarHoles(shortest / 4.0)
+        if capped is not None and capped.IsValid:
+            return capped
+    return loft
+
+
 def _revolve(profile, tol):
     curve = _polyline([rg.Point3d(r, 0, z) for r, z in profile])
     rs = rg.RevSurface.Create(curve, rg.Line(rg.Point3d(0, 0, 0), rg.Point3d(0, 0, 1)))
@@ -155,7 +171,7 @@ def _local_brep(p, tol):
         lofts = rg.Brep.CreateFromLoft(_net(rg.Curve, curves), rg.Point3d.Unset, rg.Point3d.Unset, rg.LoftType.Normal, False)
         if not lofts:
             return None
-        return _outward(lofts[0].CapPlanarHoles(tol) or lofts[0])
+        return _outward(_cap(lofts[0], p["sections"], tol))
     if t == "panel":
         # One planar face with hole loops, extruded: far faster and sturdier than boolean cuts.
         w, h = p["size"]
