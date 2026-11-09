@@ -22,6 +22,7 @@ Replace the symbolic root with the user's installation. No diagnostic script is 
 | Another server uses community `uvx rhinomcp` | It uses a different protocol. Inspect the actual conflict; do not delete entries or applications without resolving the user's intent |
 | Invalid response frame length 1213486160 | The bytes spell HTTP being parsed as a socket length. Check community-client versus McNeel-HTTP mismatch; do not treat blindly running mcpstart as the cure |
 | Router/package mismatch or timeout | Check versions, process stderr and the existing endpoint; reconnect after an authorized change |
+| Rhino is open but no slot is listed, or calls end in `startup_timeout` | Rhino's own MCP listener (RhinoAI) is not started. Ask the user to run `MCPStart` in Rhino, and to enable Load MCP server at startup in the RhinoAI settings; do not spawn a second Rhino |
 | No live Rhino document | Ask the user to open the intended Rhino document, or use a supported launch tool only within the requested scope |
 | Standard Rhino tools exist but build_model/check_model do not | The host runs McNeel's router directly or an older runtime. Modelling still works through level 2 of runtime.md (`run_python` with the verified runtime). To get the dedicated tools, point the Rhino entry at `RUNTIME_ROOT/scripts/launch-router.mjs`, with the user's consent |
 | Viewport returned as JSON text | Verify the extension launcher is in use and raw mode is not deliberately enabled. Reconnect. Use an existing supported image route if available |
