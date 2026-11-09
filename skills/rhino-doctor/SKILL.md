@@ -24,7 +24,8 @@ Each line is `OK`, `WARN` or `FAIL`. Fix the first `FAIL` before looking at the 
 | `router` | No router executable | Reinstall the package, or set `RHINO_MCP_ROUTER` to the full path of `rhino-mcp-router(.exe)`. |
 | `config` | Another Rhino MCP entry (often `uvx rhinomcp`) | That is the community plugin, which speaks a different protocol on the same port. Ask the user before removing it: `claude mcp remove <name> -s user` for `user:` lines, `-s local` (run in that project) for `local (project …)` lines, `-s project` for `project (….mcp.json)` lines. |
 | `mcp` | Timeout, error response, or "cannot start router" | Run the router path from the doctor output by hand and read its stderr. An error response usually means the Rhino-MCP-Platform package and router versions differ: update the package and restart Rhino. |
-| `rhino` | No running Rhino | Start Rhino 8. The router can also start one through its `spawn_slot` tool. |
+| `rhino` | `no running Rhino found` | Start Rhino 8. The router can also start one through its `spawn_slot` tool. |
+| `rhino` | `Rhino is running (pid …) but its MCP server is not started` | Rhino is open but its RhinoAI MCP listener is off, so the router lists no slot and tool calls end in `startup_timeout`. Ask the user to type `MCPStart` in Rhino's command line, and to turn on **Load MCP server at startup** in the RhinoAI settings so it starts with Rhino. Don't spawn a second Rhino. |
 | `detector` | INFO: `not installed (optional)` | Optional: everything else works without it. To add the facade detector, run `node "${CLAUDE_PLUGIN_ROOT}/scripts/setup.mjs"` (Windows with an NVIDIA GPU; `--cpu` for a PC without one). It needs `uv`, `gh` signed in with access to the private weights repository `filippovisentin/claude-rhino-models` (studio members only), and about 8 GB free. Only the photo tools (rectify, crop, overlay, photo3d): `node "${CLAUDE_PLUGIN_ROOT}/scripts/setup.mjs" --tools`, about 150 MB, no GPU, no models. |
 | `detector` | WARN: `setup not finished` | The setup was interrupted. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/setup.mjs"` again: it skips what is done. |
 | `detector` | WARN: `models X < Y` | The plugin asks for newer models. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/setup.mjs"` again: it downloads only the new weights. |
@@ -36,7 +37,7 @@ Each line is `OK`, `WARN` or `FAIL`. Fix the first `FAIL` before looking at the 
 
 ## Symptom: "Invalid response frame length 1213486160"
 
-1213486160 is the bytes `HTTP` read as a length prefix. A socket-based client (the community `rhinomcp`) is talking to the HTTP server of Rhino-MCP-Platform. Remove or rename the conflicting entry; `mcpstart` will not help, because it belongs to the other plugin.
+1213486160 is the bytes `HTTP` read as a length prefix. A socket-based client (the community `rhinomcp`) is talking to the HTTP server of Rhino-MCP-Platform. Remove or rename the conflicting entry. Running `MCPStart` will not help here: the listener is already up, and the client speaks the wrong protocol to it.
 
 ## Symptom: viewport image arrives as JSON text, or "exceeds maximum allowed tokens"
 

@@ -7,6 +7,7 @@ import { join } from "node:path";
 import { findInstalls, findRouter, packagesRoots } from "./find-router.mjs";
 import { findConflicts, isConflicting, describe } from "./config-check.mjs";
 import { detectorReport } from "./detector-install.mjs";
+import { findRhinoPids, noSlotAdvice } from "./rhino-process.mjs";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -101,7 +102,7 @@ function handshake() {
         let payload = [];
         try { payload = JSON.parse(slots?.content?.[0]?.text ?? "").payload ?? []; } catch { /* keep empty */ }
         if (payload.length) report("ok", "rhino", payload.map((s) => `Rhino ${s.version} pid ${s.pid} at ${s.endpoint}`).join("; "));
-        else report("warn", "rhino", "no running Rhino found. Start Rhino 8 with the Rhino-MCP-Platform plugin loaded (the router can also spawn one on demand)");
+        else report("warn", "rhino", noSlotAdvice(findRhinoPids()));
         finish(null);
       } catch (e) {
         finish("fail", e.message);
