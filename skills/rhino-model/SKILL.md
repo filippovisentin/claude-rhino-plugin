@@ -5,16 +5,16 @@ description: Model 3D geometry in Rhino 8 from a text prompt, a description or a
 
 # Rhino model (spec to 3D)
 
-Write a **JSON spec**, build it with **one** `run_python` call, check **one** small viewport image. A spec is 5-10x cheaper than RhinoCommon code, cannot run arbitrary code, and is rebuilt identically.
+Write a **JSON spec**, build it with **one** `build_model` call, check **one** small viewport image. A spec is 5-10x cheaper than RhinoCommon code, cannot run arbitrary code, and is rebuilt identically.
 
 ## Build call
 
 Call the `rhino` server's **`build_model`** tool with `{"spec": {...}}` (and `check_model` to validate without building). It needs no paths or Python and returns only the summary line.
 
-If those tools are missing (an older plugin session), fall back to `run_python`; the builder lives in `../../rhino` relative to this skill's base directory:
+If those tools are missing (an older plugin session), fall back to `run_python`; the builder lives in `${CLAUDE_PLUGIN_ROOT}/rhino`:
 
 ```python
-import sys; p=r"<plugin>\rhino"; p in sys.path or sys.path.insert(0,p)
+import sys; p=r"${CLAUDE_PLUGIN_ROOT}/rhino"; p in sys.path or sys.path.insert(0,p)
 import rhinospec; print(rhinospec.run(r'''<spec json>''', __rhino_doc__))
 ```
 
@@ -59,11 +59,13 @@ Output is one line: `{"ok":true,"layer":"rhinospec::X","added":12,"removed":0,"b
 
 **Facade and block elements** (`style`, `palette`, every `k` with its default `d`, `deco` shapes, what is built automatically): read `${CLAUDE_SKILL_DIR}/facade-elements.md` before writing any `facade` or `block` part.
 
+The plugin folder, written `<plugin>` in facades.md and photo3d.md, is `${CLAUDE_PLUGIN_ROOT}`.
+
 Limits: 2000 parts after expansion, 1000 facade elements, 500 points per polygon, coordinates within 1e6.
 
 ## Workflow
 
-1. **Size first.** Fix real dimensions before writing parts: from the prompt, from a stated reference (door 2.1 m, A4 sheet, coin), or the defaults in `docs/dimensions.md` (furniture, objects, storeys, stairs, roofs). State the assumptions in one line.
+1. **Size first.** Fix real dimensions before writing parts: from the prompt, from a stated reference (door 2.1 m, A4 sheet, coin), or the defaults in `${CLAUDE_PLUGIN_ROOT}/docs/dimensions.md` (furniture, objects, storeys, stairs, roofs). State the assumptions in one line.
 2. **Text or prompt to 3D**: decompose into the parts the user would name and give each a `group` in their language. Use `block` for a building described by its facades (counts of floors and windows become `grid`s in metres, `style:"classic"` for historic ones), `building` for free footprints, `stair` for stairs, `revolve` for turned objects, `loft` for tapering forms, `array` for anything repeated, `cut` for holes, slots and openings. Parts that should touch must touch: the floating check catches the rest.
 3. **Facade or building from a photo** (steps 3-6: straighten an angled photo, `detect_facade`, the inventory before the spec, the image-to-3D reading rules and the systematic errors measured on unseen photos): read `${CLAUDE_SKILL_DIR}/facades.md` and apply every rule in it before writing the spec; the rules were tuned on benchmarks, none is optional.
 7. **Curved and free-form buildings** (towers with a sweeping roof, sails, domes, shells; camera solve with `photo3d`, shape check with `silhouette`): read `${CLAUDE_SKILL_DIR}/photo3d.md`.
@@ -72,7 +74,7 @@ Limits: 2000 parts after expansion, 1000 facade elements, 500 points per polygon
 
 ## Token rules
 
-- One `run_python` per build; never one call per object.
+- One `build_model` (or fallback `run_python`) per build; never one call per object.
 - Don't call `list_objects` or `get_context` to confirm a build: the summary already gives counts and the bounding box.
 - Images are the expensive part: read the input photo once at most 768 px on the long side, and don't take viewport screenshots to check routine builds.
 - Use `rhinospec.check(spec)` (same import, no geometry) when unsure the spec is valid and Rhino is busy.

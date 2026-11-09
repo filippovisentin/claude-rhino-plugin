@@ -38,6 +38,8 @@ claude plugin install rhino@claude-rhino
 
 Start a new Claude session afterwards so the MCP server loads.
 
+The `rhino` MCP server is declared in `.claude-plugin/plugin.json`, so it loads only as part of the plugin: to work on a clone, add the clone as the marketplace (above) rather than opening the folder as a project.
+
 Modelling from text, prompts and images works right away. For the photo tools (straightening, zoomed crops, overlays, camera solve) run `node scripts/setup.mjs --tools` once from the plugin folder: a small Python (numpy, Pillow, OpenCV, about 150 MB) made with [`uv`](https://docs.astral.sh/uv/getting-started/installation/), no GPU and no models. For the facade detector and the other trained models (Windows with an NVIDIA GPU, or `--cpu`), run `node scripts/setup.mjs` once from the plugin folder, or ask Claude to "set up the rhino plugin's detector"; see [On a studio PC](#on-a-studio-pc).
 
 ### Other MCP clients (your own Claude or ChatGPT plan)
