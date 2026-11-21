@@ -43,6 +43,11 @@ Each line is `OK`, `WARN` or `FAIL`. Fix the first `FAIL` before looking at the 
 
 The router nests the image inside a text block. The plugin's launcher unwraps it, so this means the running `rhino` server predates plugin 0.2.0 or `RHINO_MCP_RAW=1` is set. Ask the user to start a new session. As a stopgap, capture to a file inside Rhino with `run_python` (`Rhino.Display.ViewCapture` → `bitmap.Save(path)`) and read that file.
 
+## Symptom: the open document has unsaved work, or Rhino closes during `run_python`
+
+- Unsaved document: do not clear or reuse it. Start a second Rhino with `spawn_slot` and pass its slot id to every call.
+- "slot was closed" during a call: start a new slot, re-run the build script and save after each heavy step.
+
 ## 3. Confirm
 
 After changing MCP config, the user must start a new Claude session. Then call the `rhino` server's `list_slots` and `get_context` tools: they are read-only and confirm the live document.

@@ -118,6 +118,14 @@ npm test
 
 Runs `node --test` (result unwrapping, version ordering, config conflicts, launcher framing) and the Python `unittest` suite for the rhinospec validator and building planner (`npm run test:py`). Both need no dependencies; the Rhino builder itself is checked by building the examples in `skills/rhino-model/SKILL.md` in a live Rhino.
 
+## Product tools
+
+Scripts that run inside Rhino through `run_python` (set the globals described at the top of each file, then `exec` it):
+
+- `tools/export_glb.py`: GLB export that keeps object names, user text and named PBR materials (sRGB colours converted to linear).
+- `tools/clash_check.py`: fast interference check between parts, with a list of intended contacts; writes a JSON report.
+- `tools/place_on_placeholder.py`: replaces flat placeholder slabs with STEP files (for example KiCad boards), facing the side you choose.
+
 ## Facade benchmark
 
 `tools/dev/facade_bench.py` measures image-to-3D on the [CMP Facade Database](https://cmp.felk.cvut.cz/~tylecr1/facade/) (606 annotated facades, CC BY-SA, Tyleček & Šára, GCPR 2013). The dataset isn't in the repository: download and unzip it into `data/cmp/` (ignored by git).

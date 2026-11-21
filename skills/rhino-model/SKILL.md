@@ -100,3 +100,10 @@ Vase:
 ```json
 {"units":"cm","layer":"Vaso","clear":true,"parts":[{"type":"revolve","profile":[[0,0],[6,0],[9,10],[5,22],[6,25],[0,25]]}]}
 ```
+
+## Product assemblies (lessons from product builds)
+
+- Build scripts should rebuild from scratch on every run (delete their own objects first), so a fix is one re-run.
+- Log failed booleans with the caller's line number. A failed difference usually means the cutter misses the part (a cut that is not needed, or a part in the wrong place), so check the layout before the geometry.
+- Run heavy imports (many STEP files) in their own `run_python` call and save the document between calls; Rhino can close during a long call.
+- `tools/place_on_placeholder.py` swaps board placeholders for KiCad STEPs, `tools/clash_check.py` finds interferences, `tools/export_glb.py` exports a GLB that keeps names, user text and materials.
